@@ -1,6 +1,8 @@
 from atlas.models.base import ModelClient
-from atlas.schemas.model import ResearchPreviewResponse
-
+from atlas.models.types import ModelResult
+from atlas.schemas.model import (
+    ResearchPreviewResponse,
+)
 
 SYSTEM_PROMPT = """
 You are Atlas, an evidence-oriented AI research assistant.
@@ -17,15 +19,18 @@ Rules:
 
 
 class ResearchModelService:
-    def __init__(self, model_client: ModelClient) -> None:
+    def __init__(
+        self,
+        model_client: ModelClient,
+    ) -> None:
         self._model_client = model_client
 
     async def create_preview(
         self,
         question: str,
-    ) -> ResearchPreviewResponse:
+    ) -> ModelResult[ResearchPreviewResponse]:
         return await self._model_client.generate_structured(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=question,
-            output_schema=ResearchPreviewResponse,
+            output_schema=(ResearchPreviewResponse),
         )

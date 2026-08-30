@@ -1,9 +1,15 @@
 from fastapi import FastAPI
 
-from atlas.api.routes.health import router as health_router
-from atlas.api.routes.research import router as research_router
+from atlas.api.middleware import (
+    RequestIDMiddleware,
+)
+from atlas.api.routes.health import (
+    router as health_router,
+)
+from atlas.api.routes.research import (
+    router as research_router,
+)
 from atlas.core.config import get_settings
-
 
 settings = get_settings()
 
@@ -11,8 +17,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="Evidence-driven AI research agent.",
+    description=("Evidence-driven AI research agent."),
 )
+
+
+app.add_middleware(RequestIDMiddleware)
 
 
 app.include_router(
