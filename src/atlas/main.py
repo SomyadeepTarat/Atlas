@@ -9,6 +9,12 @@ from atlas.api.routes.health import (
 from atlas.api.routes.research import (
     router as research_router,
 )
+from atlas.api.routes.documents import (
+    router as documents_router,
+)
+from atlas.api.routes.retrieval import (
+    router as retrieval_router,
+)
 from atlas.core.config import get_settings
 
 settings = get_settings()
@@ -31,5 +37,15 @@ app.include_router(
 
 app.include_router(
     research_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    documents_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    retrieval_router,
     prefix="/api/v1",
 )

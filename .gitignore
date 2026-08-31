@@ -43,3 +43,6 @@ tmp/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# qdrant
+data/qdrant/

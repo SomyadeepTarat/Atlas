@@ -48,3 +48,32 @@ class ResearchPreviewAPIResponse(BaseModel):
     request_id: str
     data: ResearchPreviewResponse
     meta: ModelMetadataResponse
+
+
+class GroundedAnswer(BaseModel):
+    answer: str = Field(
+        description=(
+            "Answer grounded only in "
+            "the supplied context."
+        )
+    )
+
+    used_chunk_ids: list[str] = Field(
+        description=(
+            "IDs of context chunks "
+            "used to support the answer."
+        )
+    )
+
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    insufficient_context: bool = Field(
+        description=(
+            "Whether the supplied "
+            "context is insufficient "
+            "to answer reliably."
+        )
+    )

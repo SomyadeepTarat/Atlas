@@ -25,6 +25,16 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection: str = "atlas_documents"
+
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+
+    chunk_size_chars: int = 1200
+    chunk_overlap_chars: int = 200
+
+    retrieval_top_k: int = 5
+
 
 @lru_cache
 def get_settings() -> Settings:

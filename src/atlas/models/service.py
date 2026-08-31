@@ -1,36 +1,42 @@
 from atlas.models.base import ModelClient
 from atlas.models.types import ModelResult
 from atlas.schemas.model import (
+    GroundedAnswer,
     ResearchPreviewResponse,
 )
 
-SYSTEM_PROMPT = """
-You are Atlas, an evidence-oriented AI research assistant.
+async def answer_from_context(
+    self,
+    *,
+    question: str,
+    context: str,
+) -> ModelResult[GroundedAnswer]:
+    system_prompt = """
+You are Atlas, an evidence-grounded research assistant.
 
-Your task in this stage is only to produce a preliminary response.
+Answer using ONLY the supplied context.
 
 Rules:
-- Be concise.
-- Do not fabricate citations.
-- Do not claim that you searched external sources.
-- If uncertain, lower the confidence score.
-- Return only information matching the required output schema.
+- Never use unsupported factual claims.
+- Never invent information.
+- If context is insufficient, say so.
+- Return the IDs of chunks used.
+- Chunk IDs appear before each context block.
+- Do not cite chunk IDs that were not supplied.
 """.strip()
 
+    user_prompt = f"""
+QUESTION:
+{question}
 
-class ResearchModelService:
-    def __init__(
-        self,
-        model_client: ModelClient,
-    ) -> None:
-        self._model_client = model_client
+CONTEXT:
+{context}
+""".strip()
 
-    async def create_preview(
-        self,
-        question: str,
-    ) -> ModelResult[ResearchPreviewResponse]:
-        return await self._model_client.generate_structured(
-            system_prompt=SYSTEM_PROMPT,
-            user_prompt=question,
-            output_schema=(ResearchPreviewResponse),
+    return await (
+        self._model_client.generate_structured(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            output_schema=GroundedAnswer,
         )
+    )
