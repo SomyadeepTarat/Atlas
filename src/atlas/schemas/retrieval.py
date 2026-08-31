@@ -26,6 +26,4 @@ class RetrievedChunkResponse(BaseModel):
 
 class RetrievalResponse(BaseModel):
     query: str
-    results: list[
-        RetrievedChunkResponse
-    ]
+    results: list[RetrievedChunkResponse]

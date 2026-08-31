@@ -15,9 +15,7 @@ class PDFLoader:
     ) -> list[DocumentPage]:
         document_id = str(uuid4())
 
-        display_filename = (
-            filename or path.name
-        )
+        display_filename = filename or path.name
 
         pages: list[DocumentPage] = []
 
@@ -26,9 +24,7 @@ class PDFLoader:
                 page = document[index]
                 text = page.get_text("text")
 
-                text = self._normalize_text(
-                    text if isinstance(text, str) else ""
-                )
+                text = self._normalize_text(text if isinstance(text, str) else "")
 
                 if not text:
                     continue
@@ -36,9 +32,7 @@ class PDFLoader:
                 pages.append(
                     DocumentPage(
                         document_id=document_id,
-                        filename=(
-                            display_filename
-                        ),
+                        filename=(display_filename),
                         page_number=index + 1,
                         text=text,
                     )
@@ -50,15 +44,8 @@ class PDFLoader:
     def _normalize_text(
         text: str,
     ) -> str:
-        lines = [
-            line.strip()
-            for line in text.splitlines()
-        ]
+        lines = [line.strip() for line in text.splitlines()]
 
-        non_empty = [
-            line
-            for line in lines
-            if line
-        ]
+        non_empty = [line for line in lines if line]
 
         return "\n".join(non_empty)

@@ -10,11 +10,10 @@ from atlas.retrieval.service import (
     RetrievalService,
 )
 from atlas.schemas.retrieval import (
-    RetrievedChunkResponse,
     RetrievalRequest,
     RetrievalResponse,
+    RetrievedChunkResponse,
 )
-
 
 router = APIRouter(
     prefix="/retrieval",
@@ -28,29 +27,19 @@ router = APIRouter(
 )
 async def search_documents(
     payload: RetrievalRequest,
-    retrieval: RetrievalService = Depends(
-        get_retrieval_service
-    ),
+    retrieval: RetrievalService = Depends(get_retrieval_service),
 ) -> RetrievalResponse:
-    results = retrieval.search(
-        payload.query
-    )
+    results = retrieval.search(payload.query)
 
     return RetrievalResponse(
         query=payload.query,
         results=[
             RetrievedChunkResponse(
                 chunk_id=item.chunk_id,
-                document_id=(
-                    item.document_id
-                ),
+                document_id=(item.document_id),
                 filename=item.filename,
-                page_number=(
-                    item.page_number
-                ),
-                chunk_index=(
-                    item.chunk_index
-                ),
+                page_number=(item.page_number),
+                chunk_index=(item.chunk_index),
                 text=item.text,
                 score=item.score,
             )

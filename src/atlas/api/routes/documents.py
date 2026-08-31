@@ -20,7 +20,6 @@ from atlas.schemas.retrieval import (
     DocumentIngestResponse,
 )
 
-
 router = APIRouter(
     prefix="/documents",
     tags=["documents"],
@@ -33,23 +32,14 @@ router = APIRouter(
 )
 async def upload_document(
     file: UploadFile = File(...),
-    retrieval: RetrievalService = Depends(
-        get_retrieval_service
-    ),
+    retrieval: RetrievalService = Depends(get_retrieval_service),
 ) -> DocumentIngestResponse:
     filename = file.filename or "document.pdf"
 
-    if not filename.lower().endswith(
-        ".pdf"
-    ):
+    if not filename.lower().endswith(".pdf"):
         raise HTTPException(
-            status_code=(
-                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
-            ),
-            detail=(
-                "Only PDF files are supported "
-                "in this milestone."
-            ),
+            status_code=(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE),
+            detail=("Only PDF files are supported in this milestone."),
         )
 
     content = await file.read()
@@ -71,11 +61,9 @@ async def upload_document(
 
             temp_path = Path(temp.name)
 
-        document_id, chunk_count = (
-            retrieval.ingest_pdf(
-                temp_path,
-                filename=filename,
-            )
+        document_id, chunk_count = retrieval.ingest_pdf(
+            temp_path,
+            filename=filename,
         )
 
     except ValueError as exc:
@@ -85,10 +73,7 @@ async def upload_document(
         ) from exc
 
     finally:
-        if (
-            temp_path is not None
-            and temp_path.exists()
-        ):
+        if temp_path is not None and temp_path.exists():
             temp_path.unlink()
 
     return DocumentIngestResponse(

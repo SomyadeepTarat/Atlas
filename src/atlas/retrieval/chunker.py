@@ -14,20 +14,13 @@ class TextChunker:
         overlap: int,
     ) -> None:
         if chunk_size <= 0:
-            raise ValueError(
-                "chunk_size must be positive."
-            )
+            raise ValueError("chunk_size must be positive.")
 
         if overlap < 0:
-            raise ValueError(
-                "overlap cannot be negative."
-            )
+            raise ValueError("overlap cannot be negative.")
 
         if overlap >= chunk_size:
-            raise ValueError(
-                "overlap must be smaller "
-                "than chunk_size."
-            )
+            raise ValueError("overlap must be smaller than chunk_size.")
 
         self._chunk_size = chunk_size
         self._overlap = overlap
@@ -41,21 +34,15 @@ class TextChunker:
         chunk_index = 0
 
         for page in pages:
-            page_chunks = self._chunk_text(
-                page.text
-            )
+            page_chunks = self._chunk_text(page.text)
 
             for text in page_chunks:
                 chunks.append(
                     DocumentChunk(
                         chunk_id=str(uuid4()),
-                        document_id=(
-                            page.document_id
-                        ),
+                        document_id=(page.document_id),
                         filename=page.filename,
-                        page_number=(
-                            page.page_number
-                        ),
+                        page_number=(page.page_number),
                         chunk_index=chunk_index,
                         text=text,
                     )
@@ -83,11 +70,7 @@ class TextChunker:
             candidate = text[start:end]
 
             if end < text_length:
-                candidate = (
-                    self._move_to_boundary(
-                        candidate
-                    )
-                )
+                candidate = self._move_to_boundary(candidate)
 
             candidate = candidate.strip()
 
@@ -99,11 +82,7 @@ class TextChunker:
             if consumed == 0:
                 break
 
-            next_start = (
-                start
-                + consumed
-                - self._overlap
-            )
+            next_start = start + consumed - self._overlap
 
             if next_start <= start:
                 next_start = end
@@ -125,9 +104,7 @@ class TextChunker:
 
         best = max(boundaries)
 
-        minimum_boundary = int(
-            len(text) * 0.6
-        )
+        minimum_boundary = int(len(text) * 0.6)
 
         if best >= minimum_boundary:
             return text[: best + 1]

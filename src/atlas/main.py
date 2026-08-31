@@ -3,14 +3,14 @@ from fastapi import FastAPI
 from atlas.api.middleware import (
     RequestIDMiddleware,
 )
+from atlas.api.routes.documents import (
+    router as documents_router,
+)
 from atlas.api.routes.health import (
     router as health_router,
 )
 from atlas.api.routes.research import (
     router as research_router,
-)
-from atlas.api.routes.documents import (
-    router as documents_router,
 )
 from atlas.api.routes.retrieval import (
     router as retrieval_router,

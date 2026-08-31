@@ -18,10 +18,18 @@ from atlas.models.errors import (
 from atlas.models.service import (
     ResearchModelService,
 )
+from atlas.research.dependencies import (
+    get_research_service,
+)
+from atlas.research.service import (
+    ResearchService,
+)
 from atlas.schemas.model import (
+    GroundedAnswerAPIResponse,
     ModelMetadataResponse,
     ModelTimingResponse,
     ModelUsageResponse,
+    ResearchAnswerRequest,
     ResearchPreviewAPIResponse,
     ResearchPreviewRequest,
 )
@@ -71,6 +79,47 @@ async def research_preview(
     metadata = result.metadata
 
     return ResearchPreviewAPIResponse(
+        request_id=request.state.request_id,
+        data=result.output,
+        meta=ModelMetadataResponse(
+            provider=metadata.provider,
+            model=metadata.model,
+            attempts=metadata.attempts,
+            usage=ModelUsageResponse(
+                input_tokens=(metadata.usage.input_tokens),
+                output_tokens=(metadata.usage.output_tokens),
+            ),
+            timings=ModelTimingResponse(
+                total_seconds=(metadata.timings.total_seconds),
+                load_seconds=(metadata.timings.load_seconds),
+                prompt_eval_seconds=(metadata.timings.prompt_eval_seconds),
+                generation_seconds=(metadata.timings.generation_seconds),
+            ),
+        ),
+    )
+
+
+@router.post(
+    "/answer",
+    response_model=GroundedAnswerAPIResponse,
+)
+async def research_answer(
+    payload: ResearchAnswerRequest,
+    request: Request,
+    service: ResearchService = Depends(get_research_service),
+) -> GroundedAnswerAPIResponse:
+    try:
+        result = await service.answer(payload.question)
+
+    except AllModelsFailedError as exc:
+        raise HTTPException(
+            status_code=(status.HTTP_503_SERVICE_UNAVAILABLE),
+            detail=("No configured model is currently available."),
+        ) from exc
+
+    metadata = result.metadata
+
+    return GroundedAnswerAPIResponse(
         request_id=request.state.request_id,
         data=result.output,
         meta=ModelMetadataResponse(

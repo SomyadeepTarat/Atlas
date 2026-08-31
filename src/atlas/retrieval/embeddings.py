@@ -9,19 +9,11 @@ class EmbeddingService:
     ) -> None:
         self._model_name = model_name
 
-        self._model = TextEmbedding(
-            model_name=model_name
-        )
+        self._model = TextEmbedding(model_name=model_name)
 
     @property
     def dimension(self) -> int:
-        test_vector = next(
-            iter(
-                self._model.embed(
-                    ["dimension check"]
-                )
-            )
-        )
+        test_vector = next(iter(self._model.embed(["dimension check"])))
 
         return len(test_vector)
 
@@ -31,21 +23,12 @@ class EmbeddingService:
     ) -> list[list[float]]:
         embeddings = self._model.embed(texts)
 
-        return [
-            embedding.tolist()
-            for embedding in embeddings
-        ]
+        return [embedding.tolist() for embedding in embeddings]
 
     def embed_query(
         self,
         query: str,
     ) -> list[float]:
-        embedding = next(
-            iter(
-                self._model.query_embed(
-                    query
-                )
-            )
-        )
+        embedding = next(iter(self._model.query_embed(query)))
 
         return embedding.tolist()

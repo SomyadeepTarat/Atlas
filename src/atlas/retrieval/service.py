@@ -38,30 +38,16 @@ class RetrievalService:
         filename: str | None = None,
     ) -> tuple[str, int]:
         pages = self._loader.load(
-        path,
-        filename=filename,
-    )
+            path,
+            filename=filename,
+        )
 
         if not pages:
-            raise ValueError(
-                "No extractable text "
-                "was found in the PDF."
-            )
+            raise ValueError("No extractable text was found in the PDF.")
 
-        chunks = (
-            self._chunker.chunk_pages(
-                pages
-            )
-        )
+        chunks = self._chunker.chunk_pages(pages)
 
-        vectors = (
-            self._embeddings.embed_documents(
-                [
-                    chunk.text
-                    for chunk in chunks
-                ]
-            )
-        )
+        vectors = self._embeddings.embed_documents([chunk.text for chunk in chunks])
 
         self._vector_store.ensure_collection()
 
@@ -79,11 +65,7 @@ class RetrievalService:
         self,
         query: str,
     ) -> list[RetrievedChunk]:
-        vector = (
-            self._embeddings.embed_query(
-                query
-            )
-        )
+        vector = self._embeddings.embed_query(query)
 
         self._vector_store.ensure_collection()
 
@@ -91,4 +73,3 @@ class RetrievalService:
             query_vector=vector,
             limit=self._top_k,
         )
-    

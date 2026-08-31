@@ -12,16 +12,8 @@ def build_context(
         blocks.append(
             "\n".join(
                 [
-                    (
-                        f"[CHUNK_ID: "
-                        f"{chunk.chunk_id}]"
-                    ),
-                    (
-                        f"[SOURCE: "
-                        f"{chunk.filename}, "
-                        f"page "
-                        f"{chunk.page_number}]"
-                    ),
+                    (f"[CHUNK_ID: {chunk.chunk_id}]"),
+                    (f"[SOURCE: {chunk.filename}, page {chunk.page_number}]"),
                     chunk.text,
                 ]
             )

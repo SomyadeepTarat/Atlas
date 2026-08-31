@@ -19,7 +19,13 @@ typecheck:
 	uv run mypy src
 
 quality:
-	uv run ruff format --check .
-	uv run ruff check .
+	uv run ruff format .
+	uv run ruff check . --fix
 	uv run mypy src
 	uv run pytest
+
+qdrant-start:
+	docker start atlas-qdrant
+
+qdrant-stop:
+	docker stop atlas-qdrant
