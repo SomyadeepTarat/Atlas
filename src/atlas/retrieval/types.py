@@ -27,4 +27,5 @@ class RetrievedChunk:
     page_number: int
     chunk_index: int
     text: str
-    score: float
+    retrieval_score: float
+    rerank_score: float | None = None

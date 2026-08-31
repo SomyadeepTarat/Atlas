@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from qdrant_client import QdrantClient
+from qdrant_client.models import SparseVector
 
 from atlas.retrieval.store import QdrantVectorStore
 from atlas.retrieval.types import DocumentChunk
@@ -41,14 +42,28 @@ def test_vector_store_search():
 
     store.upsert(
         chunks=chunks,
-        vectors=[
+        dense_vectors=[
             [1.0, 0.0, 0.0],
             [0.0, 1.0, 0.0],
         ],
+        sparse_vectors=[
+            SparseVector(
+                indices=[0],
+                values=[1.0],
+            ),
+            SparseVector(
+                indices=[1],
+                values=[1.0],
+            ),
+        ],
     )
 
-    results = store.search(
-        query_vector=[1.0, 0.0, 0.0],
+    results = store.hybrid_search(
+        dense_query=[1.0, 0.0, 0.0],
+        sparse_query=SparseVector(
+            indices=[0],
+            values=[1.0],
+        ),
         limit=1,
     )
 

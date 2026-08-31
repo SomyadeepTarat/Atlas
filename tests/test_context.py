@@ -14,7 +14,7 @@ def test_context_contains_source_metadata():
         page_number=4,
         chunk_index=2,
         text="Important evidence.",
-        score=0.91,
+        retrieval_score=0.91,
     )
 
     context = build_context([chunk])

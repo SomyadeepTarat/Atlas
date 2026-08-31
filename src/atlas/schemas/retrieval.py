@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class DocumentIngestResponse(BaseModel):
@@ -8,10 +8,8 @@ class DocumentIngestResponse(BaseModel):
 
 
 class RetrievalRequest(BaseModel):
-    query: str = Field(
-        min_length=3,
-        max_length=2000,
-    )
+    query: str
+    document_ids: list[str] | None = None
 
 
 class RetrievedChunkResponse(BaseModel):
@@ -21,7 +19,8 @@ class RetrievedChunkResponse(BaseModel):
     page_number: int
     chunk_index: int
     text: str
-    score: float
+    retrieval_score: float
+    rerank_score: float | None
 
 
 class RetrievalResponse(BaseModel):

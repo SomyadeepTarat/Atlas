@@ -35,6 +35,17 @@ class Settings(BaseSettings):
 
     retrieval_top_k: int = 5
 
+    sparse_embedding_model: str = "Qdrant/bm25"
+
+    retrieval_candidate_k: int = 20
+    rerank_top_k: int = 8
+    context_top_k: int = 5
+
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    max_context_chars: int = 7000
+    minimum_rerank_score: float | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

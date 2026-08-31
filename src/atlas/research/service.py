@@ -2,6 +2,10 @@ from atlas.models.service import (
     ResearchModelService,
 )
 from atlas.models.types import ModelResult
+from atlas.research.errors import InvalidCitationError
+from atlas.research.validation import (
+    validate_citations,
+)
 from atlas.retrieval.context import (
     build_context,
 )
@@ -27,11 +31,23 @@ class ResearchService:
         self,
         question: str,
     ) -> ModelResult[GroundedAnswer]:
-        chunks = self._retrieval.search(question)
+        chunks = self._retrieval.retrieve_context(question)
 
         context = build_context(chunks)
 
-        return await self._model.answer_from_context(
+        result = await self._model.answer_from_context(
             question=question,
             context=context,
         )
+
+        validation = validate_citations(
+            answer=result.output,
+            context_chunks=chunks,
+        )
+
+        if not validation.valid:
+            raise InvalidCitationError(
+                f"Model returned unsupported chunk IDs: {validation.invalid_chunk_ids}"
+            )
+
+        return result

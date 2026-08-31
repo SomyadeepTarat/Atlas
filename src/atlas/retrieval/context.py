@@ -3,6 +3,31 @@ from atlas.retrieval.types import (
 )
 
 
+def select_context_chunks(
+    chunks: list[RetrievedChunk],
+    *,
+    max_chunks: int,
+    max_chars: int,
+) -> list[RetrievedChunk]:
+    selected: list[RetrievedChunk] = []
+
+    used_chars = 0
+
+    for chunk in chunks:
+        if len(selected) >= max_chunks:
+            break
+
+        chunk_cost = len(chunk.text)
+
+        if used_chars + chunk_cost > max_chars:
+            continue
+
+        selected.append(chunk)
+        used_chars += chunk_cost
+
+    return selected
+
+
 def build_context(
     chunks: list[RetrievedChunk],
 ) -> str:

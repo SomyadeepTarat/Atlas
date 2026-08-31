@@ -1,7 +1,14 @@
-from qdrant_client import QdrantClient
+from typing import cast
+
+from qdrant_client import QdrantClient, models
 from qdrant_client.models import (
     Distance,
+    FieldCondition,
+    Filter,
+    MatchAny,
     PointStruct,
+    SparseVector,
+    SparseVectorParams,
     VectorParams,
 )
 
@@ -17,8 +24,8 @@ class QdrantVectorStore:
         *,
         collection_name: str,
         vector_size: int,
-        client: QdrantClient | None = None,
         url: str | None = None,
+        client: QdrantClient | None = None,
     ) -> None:
         if client is None:
             if url is None:
@@ -35,74 +42,134 @@ class QdrantVectorStore:
             return
 
         self._client.create_collection(
-            collection_name=(self._collection_name),
-            vectors_config=VectorParams(
-                size=self._vector_size,
-                distance=Distance.COSINE,
-            ),
+            collection_name=self._collection_name,
+            vectors_config={
+                "dense": VectorParams(
+                    size=self._vector_size,
+                    distance=Distance.COSINE,
+                ),
+            },
+            sparse_vectors_config={
+                "sparse": SparseVectorParams(),
+            },
         )
 
     def upsert(
         self,
         *,
         chunks: list[DocumentChunk],
-        vectors: list[list[float]],
+        dense_vectors: list[list[float]],
+        sparse_vectors: list[SparseVector],
     ) -> None:
-        if len(chunks) != len(vectors):
-            raise ValueError("Chunks and vectors must have the same length.")
+        if len(chunks) != len(dense_vectors):
+            raise ValueError("Chunks and dense vectors must have the same length.")
+
+        if len(chunks) != len(sparse_vectors):
+            raise ValueError("Chunks and sparse vectors must have the same length.")
 
         points = [
             PointStruct(
                 id=chunk.chunk_id,
-                vector=vector,
+                vector={
+                    "dense": dense_vector,
+                    "sparse": sparse_vector,
+                },
                 payload={
-                    "document_id": (chunk.document_id),
-                    "filename": (chunk.filename),
-                    "page_number": (chunk.page_number),
-                    "chunk_index": (chunk.chunk_index),
+                    "document_id": chunk.document_id,
+                    "filename": chunk.filename,
+                    "page_number": chunk.page_number,
+                    "chunk_index": chunk.chunk_index,
                     "text": chunk.text,
                 },
             )
-            for chunk, vector in zip(
+            for chunk, dense_vector, sparse_vector in zip(
                 chunks,
-                vectors,
+                dense_vectors,
+                sparse_vectors,
                 strict=True,
             )
         ]
 
         self._client.upsert(
-            collection_name=(self._collection_name),
+            collection_name=self._collection_name,
             points=points,
-            wait=True,
         )
 
-    def search(
+    def hybrid_search(
         self,
         *,
-        query_vector: list[float],
+        dense_query: list[float],
+        sparse_query: SparseVector,
         limit: int,
+        document_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
-        results = self._client.query_points(
-            collection_name=(self._collection_name),
-            query=query_vector,
+        query_filter: Filter | None = None
+
+        if document_ids:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="document_id",
+                        match=MatchAny(
+                            any=document_ids,
+                        ),
+                    )
+                ]
+            )
+
+        response = self._client.query_points(
+            collection_name=self._collection_name,
+            prefetch=[
+                models.Prefetch(
+                    query=dense_query,
+                    using="dense",
+                    limit=limit,
+                    filter=query_filter,
+                ),
+                models.Prefetch(
+                    query=sparse_query,
+                    using="sparse",
+                    limit=limit,
+                    filter=query_filter,
+                ),
+            ],
+            query=models.FusionQuery(
+                fusion=models.Fusion.RRF,
+            ),
             limit=limit,
             with_payload=True,
-        ).points
+        )
 
         retrieved: list[RetrievedChunk] = []
 
-        for result in results:
+        for result in response.points:
             payload = result.payload or {}
 
             retrieved.append(
                 RetrievedChunk(
                     chunk_id=str(result.id),
-                    document_id=str(payload["document_id"]),
-                    filename=str(payload["filename"]),
-                    page_number=int(payload["page_number"]),
-                    chunk_index=int(payload["chunk_index"]),
-                    text=str(payload["text"]),
-                    score=float(result.score),
+                    document_id=cast(
+                        str,
+                        payload["document_id"],
+                    ),
+                    filename=cast(
+                        str,
+                        payload["filename"],
+                    ),
+                    page_number=cast(
+                        int,
+                        payload["page_number"],
+                    ),
+                    chunk_index=cast(
+                        int,
+                        payload["chunk_index"],
+                    ),
+                    text=cast(
+                        str,
+                        payload["text"],
+                    ),
+                    retrieval_score=float(result.score),
+                    rerank_score=None,
                 )
             )
 
