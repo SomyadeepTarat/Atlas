@@ -1,0 +1,112 @@
+[
+  {
+    "case_id": "rag-001",
+    "question": "What is the name of the evaluation framework introduced in the paper?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "RAGAS"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-002",
+    "question": "What type of systems is RAGAS designed to evaluate?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "retrieval augmented generation"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-003",
+    "question": "What does faithfulness measure in RAGAS?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "faithfulness"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-004",
+    "question": "What does answer relevance evaluate?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "answer relevance"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-005",
+    "question": "What does context relevance evaluate in a retrieval augmented generation system?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "context relevance"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-006",
+    "question": "Does RAGAS require human annotations for evaluation?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "human annotations"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-007",
+    "question": "Why is evaluation important for retrieval augmented generation systems?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "evaluation"
+      }
+    ],
+    "should_abstain": false
+  },
+  {
+    "case_id": "rag-008",
+    "question": "What components of a retrieval augmented generation pipeline are evaluated by RAGAS?",
+    "relevant_evidence": [
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "retrieval"
+      },
+      {
+        "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+        "chunk_id": null,
+        "page_number": null,
+        "text_contains": "generation"
+      }
+    ],
+    "should_abstain": false
+  }
+]

@@ -1,5 +1,4 @@
-from uuid import uuid4
-
+from atlas.retrieval.identity import create_chunk_id
 from atlas.retrieval.types import (
     DocumentChunk,
     DocumentPage,
@@ -39,12 +38,17 @@ class TextChunker:
             for text in page_chunks:
                 chunks.append(
                     DocumentChunk(
-                        chunk_id=str(uuid4()),
-                        document_id=(page.document_id),
+                        document_id=page.document_id,
                         filename=page.filename,
-                        page_number=(page.page_number),
+                        page_number=page.page_number,
                         chunk_index=chunk_index,
                         text=text,
+                        chunk_id=create_chunk_id(
+                            document_id=page.document_id,
+                            page_number=page.page_number,
+                            chunk_index=chunk_index,
+                            text=text,
+                        ),
                     )
                 )
 

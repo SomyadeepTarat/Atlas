@@ -1,4 +1,5 @@
 from typing import cast
+from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import QdrantClient, models
 from qdrant_client.models import (
@@ -69,12 +70,18 @@ class QdrantVectorStore:
 
         points = [
             PointStruct(
-                id=chunk.chunk_id,
+                id=str(
+                    uuid5(
+                        NAMESPACE_URL,
+                        chunk.chunk_id,
+                    )
+                ),
                 vector={
                     "dense": dense_vector,
                     "sparse": sparse_vector,
                 },
                 payload={
+                    "chunk_id": chunk.chunk_id,
                     "document_id": chunk.document_id,
                     "filename": chunk.filename,
                     "page_number": chunk.page_number,
@@ -147,7 +154,10 @@ class QdrantVectorStore:
 
             retrieved.append(
                 RetrievedChunk(
-                    chunk_id=str(result.id),
+                    chunk_id=cast(
+                        str,
+                        payload["chunk_id"],
+                    ),
                     document_id=cast(
                         str,
                         payload["document_id"],
@@ -174,3 +184,58 @@ class QdrantVectorStore:
             )
 
         return retrieved
+
+    def dense_search(
+        self,
+        *,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[RetrievedChunk]:
+        response = self._client.query_points(
+            collection_name=self._collection_name,
+            query=query_vector,
+            using="dense",
+            limit=limit,
+            with_payload=True,
+        )
+
+        return self._to_chunks(response.points)
+
+    def sparse_search(
+        self,
+        *,
+        query_vector: SparseVector,
+        limit: int,
+    ) -> list[RetrievedChunk]:
+        response = self._client.query_points(
+            collection_name=self._collection_name,
+            query=query_vector,
+            using="sparse",
+            limit=limit,
+            with_payload=True,
+        )
+
+        return self._to_chunks(response.points)
+
+    def _to_chunks(
+        self,
+        points,
+    ) -> list[RetrievedChunk]:
+        chunks: list[RetrievedChunk] = []
+
+        for point in points:
+            payload = point.payload or {}
+
+            chunks.append(
+                RetrievedChunk(
+                    chunk_id=str(point.id),
+                    document_id=str(payload["document_id"]),
+                    filename=str(payload["filename"]),
+                    page_number=int(payload["page_number"]),
+                    chunk_index=int(payload["chunk_index"]),
+                    text=str(payload["text"]),
+                    retrieval_score=float(point.score),
+                )
+            )
+
+        return chunks

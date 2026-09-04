@@ -107,3 +107,55 @@ class RetrievalService:
             max_chunks=self._context_top_k,
             max_chars=self._max_context_chars,
         )
+
+    def retrieve_for_experiment(
+        self,
+        *,
+        query: str,
+        mode: str,
+        candidate_k: int,
+        final_k: int,
+        use_reranker: bool,
+        use_deduplication: bool,
+    ) -> list[RetrievedChunk]:
+        if mode == "dense":
+            dense_query = self._embeddings.embed_query_dense(query)
+
+            chunks = self._vector_store.dense_search(
+                query_vector=dense_query,
+                limit=candidate_k,
+            )
+
+        elif mode == "sparse":
+            sparse_query = self._embeddings.embed_query_sparse(query)
+
+            chunks = self._vector_store.sparse_search(
+                query_vector=sparse_query,
+                limit=candidate_k,
+            )
+
+        elif mode == "hybrid":
+            dense_query = self._embeddings.embed_query_dense(query)
+
+            sparse_query = self._embeddings.embed_query_sparse(query)
+
+            chunks = self._vector_store.hybrid_search(
+                dense_query=dense_query,
+                sparse_query=sparse_query,
+                limit=candidate_k,
+            )
+
+        else:
+            raise ValueError(f"Unsupported retrieval mode: {mode}")
+
+        if use_reranker:
+            chunks = self._reranker.rerank(
+                query=query,
+                chunks=chunks,
+                limit=candidate_k,
+            )
+
+        if use_deduplication:
+            chunks = deduplicate_adjacent_chunks(chunks)
+
+        return chunks[:final_k]

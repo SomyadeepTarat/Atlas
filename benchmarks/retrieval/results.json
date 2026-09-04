@@ -1,0 +1,59 @@
+{
+  "benchmark": "Atlas Retrieval Evaluation",
+  "dataset": "retrieval_v1",
+  "source_document": "ragas.pdf",
+  "document_id": "6c24762a3f277fd120ed1adf34b01420ecf92f18ff6d1b5435fa0a09cb804ecb",
+  "configurations": [
+    {
+      "name": "dense",
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.225,
+      "mrr": 0.7375,
+      "ndcg_at_k": 0.7852,
+      "mean_latency_seconds": 0.0179
+    },
+    {
+      "name": "sparse",
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.225,
+      "mrr": 0.875,
+      "ndcg_at_k": 0.8977,
+      "mean_latency_seconds": 0.003
+    },
+    {
+      "name": "hybrid",
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.225,
+      "mrr": 0.875,
+      "ndcg_at_k": 0.8977,
+      "mean_latency_seconds": 0.0129
+    },
+    {
+      "name": "hybrid-rerank",
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.225,
+      "mrr": 0.9062,
+      "ndcg_at_k": 0.9188,
+      "mean_latency_seconds": 0.1369
+    },
+    {
+      "name": "hybrid-rerank-dedupe",
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.225,
+      "mrr": 0.9062,
+      "ndcg_at_k": 0.9188,
+      "mean_latency_seconds": 0.0927
+    }
+  ],
+  "best_configuration": {
+    "name": "hybrid-rerank",
+    "reason": "Highest MRR and nDCG among evaluated configurations. Hybrid-rerank-dedupe achieved the same ranking quality with lower latency in this single run."
+  },
+  "notes": [
+    "All configurations achieved perfect Recall@K on the current evaluation set.",
+    "Sparse retrieval outperformed dense retrieval on ranking quality.",
+    "Reranking produced the strongest MRR and nDCG scores.",
+    "The current benchmark uses a small, terminology-heavy dataset based on a single technical document.",
+    "Latency values are from a single run and should not be treated as stable performance measurements."
+  ]
+}

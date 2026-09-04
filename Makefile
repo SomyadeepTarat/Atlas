@@ -29,3 +29,10 @@ qdrant-start:
 
 qdrant-stop:
 	docker stop atlas-qdrant
+
+eval-retrieval:
+	uv run python scripts/run_retrieval_evals.py
+
+eval:
+	$(MAKE) eval-retrieval
+	

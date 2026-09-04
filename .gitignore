@@ -46,3 +46,6 @@ tmp/
 
 # qdrant
 data/qdrant/
+
+# DeepEval local state / cache
+.deepeval/

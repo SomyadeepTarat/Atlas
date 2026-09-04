@@ -1,8 +1,10 @@
 from pathlib import Path
-from uuid import uuid4
 
 import pymupdf
 
+from atlas.retrieval.identity import (
+    create_document_id,
+)
 from atlas.retrieval.types import DocumentPage
 
 
@@ -13,7 +15,7 @@ class PDFLoader:
         *,
         filename: str | None = None,
     ) -> list[DocumentPage]:
-        document_id = str(uuid4())
+        document_id = create_document_id(path)
 
         display_filename = filename or path.name
 
