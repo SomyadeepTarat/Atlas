@@ -1,10 +1,15 @@
 from functools import lru_cache
 
+from atlas.core.config import get_settings
 from atlas.models.dependencies import (
     get_research_model_service,
 )
-from atlas.research.service import (
-    ResearchService,
+from atlas.research.service import ResearchService
+from atlas.research.workflow.graph import (
+    build_research_graph,
+)
+from atlas.research.workflow.nodes import (
+    ResearchWorkflowNodes,
 )
 from atlas.retrieval.dependencies import (
     get_retrieval_service,
@@ -13,7 +18,18 @@ from atlas.retrieval.dependencies import (
 
 @lru_cache
 def get_research_service() -> ResearchService:
-    return ResearchService(
+    settings = get_settings()
+
+    nodes = ResearchWorkflowNodes(
         retrieval=get_retrieval_service(),
-        model=(get_research_model_service()),
+        model=get_research_model_service(),
+    )
+
+    graph = build_research_graph(
+        nodes=nodes,
+    )
+
+    return ResearchService(
+        graph=graph,
+        max_iterations=(settings.research_max_iterations),
     )

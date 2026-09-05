@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -6,17 +8,8 @@ from fastapi import (
     status,
 )
 
-from atlas.models.dependencies import (
-    get_research_model_service,
-)
 from atlas.models.errors import (
     AllModelsFailedError,
-    ModelInvalidOutputError,
-    ModelTimeoutError,
-    ModelUnavailableError,
-)
-from atlas.models.service import (
-    ResearchModelService,
 )
 from atlas.research.dependencies import (
     get_research_service,
@@ -26,12 +19,7 @@ from atlas.research.service import (
 )
 from atlas.schemas.model import (
     GroundedAnswerAPIResponse,
-    ModelMetadataResponse,
-    ModelTimingResponse,
-    ModelUsageResponse,
     ResearchAnswerRequest,
-    ResearchPreviewAPIResponse,
-    ResearchPreviewRequest,
 )
 
 router = APIRouter(
@@ -41,75 +29,21 @@ router = APIRouter(
 
 
 @router.post(
-    "/preview",
-    response_model=ResearchPreviewAPIResponse,
-)
-async def research_preview(
-    payload: ResearchPreviewRequest,
-    request: Request,
-    service: ResearchModelService = Depends(get_research_model_service),
-) -> ResearchPreviewAPIResponse:
-    try:
-        result = await service.create_preview(payload.question)
-
-    except ModelTimeoutError as exc:
-        raise HTTPException(
-            status_code=(status.HTTP_504_GATEWAY_TIMEOUT),
-            detail=("The model took too long to respond."),
-        ) from exc
-
-    except ModelUnavailableError as exc:
-        raise HTTPException(
-            status_code=(status.HTTP_503_SERVICE_UNAVAILABLE),
-            detail=("The model service is unavailable."),
-        ) from exc
-
-    except ModelInvalidOutputError as exc:
-        raise HTTPException(
-            status_code=(status.HTTP_502_BAD_GATEWAY),
-            detail=("The model produced an invalid response."),
-        ) from exc
-
-    except AllModelsFailedError as exc:
-        raise HTTPException(
-            status_code=(status.HTTP_503_SERVICE_UNAVAILABLE),
-            detail=("No configured model is currently available."),
-        ) from exc
-
-    metadata = result.metadata
-
-    return ResearchPreviewAPIResponse(
-        request_id=request.state.request_id,
-        data=result.output,
-        meta=ModelMetadataResponse(
-            provider=metadata.provider,
-            model=metadata.model,
-            attempts=metadata.attempts,
-            usage=ModelUsageResponse(
-                input_tokens=(metadata.usage.input_tokens),
-                output_tokens=(metadata.usage.output_tokens),
-            ),
-            timings=ModelTimingResponse(
-                total_seconds=(metadata.timings.total_seconds),
-                load_seconds=(metadata.timings.load_seconds),
-                prompt_eval_seconds=(metadata.timings.prompt_eval_seconds),
-                generation_seconds=(metadata.timings.generation_seconds),
-            ),
-        ),
-    )
-
-
-@router.post(
     "/answer",
     response_model=GroundedAnswerAPIResponse,
 )
-async def research_answer(
+async def answer_research_question(
     payload: ResearchAnswerRequest,
     request: Request,
     service: ResearchService = Depends(get_research_service),
 ) -> GroundedAnswerAPIResponse:
+    thread_id = request.headers.get("X-Thread-ID") or str(uuid4())
+
     try:
-        result = await service.answer(payload.question)
+        result = await service.answer(
+            payload.question,
+            thread_id=thread_id,
+        )
 
     except AllModelsFailedError as exc:
         raise HTTPException(
@@ -117,24 +51,10 @@ async def research_answer(
             detail=("No configured model is currently available."),
         ) from exc
 
-    metadata = result.metadata
-
     return GroundedAnswerAPIResponse(
-        request_id=request.state.request_id,
-        data=result.output,
-        meta=ModelMetadataResponse(
-            provider=metadata.provider,
-            model=metadata.model,
-            attempts=metadata.attempts,
-            usage=ModelUsageResponse(
-                input_tokens=(metadata.usage.input_tokens),
-                output_tokens=(metadata.usage.output_tokens),
-            ),
-            timings=ModelTimingResponse(
-                total_seconds=(metadata.timings.total_seconds),
-                load_seconds=(metadata.timings.load_seconds),
-                prompt_eval_seconds=(metadata.timings.prompt_eval_seconds),
-                generation_seconds=(metadata.timings.generation_seconds),
-            ),
-        ),
+        data=result.answer,
+        thread_id=thread_id,
+        iterations=result.iterations,
+        verification_passed=(result.verification_passed),
+        verification_reason=(result.verification_reason),
     )

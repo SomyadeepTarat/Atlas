@@ -52,6 +52,7 @@ class OllamaModelClient(ModelClient):
         payload = {
             "model": self._model,
             "stream": False,
+            "think": False,
             "messages": [
                 {
                     "role": "system",

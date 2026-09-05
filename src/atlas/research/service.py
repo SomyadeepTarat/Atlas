@@ -1,53 +1,62 @@
-from atlas.models.service import (
-    ResearchModelService,
-)
-from atlas.models.types import ModelResult
-from atlas.research.errors import InvalidCitationError
-from atlas.research.validation import (
-    validate_citations,
-)
-from atlas.retrieval.context import (
-    build_context,
-)
-from atlas.retrieval.service import (
-    RetrievalService,
-)
-from atlas.schemas.model import (
-    GroundedAnswer,
-)
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from atlas.schemas.model import GroundedAnswer
+
+
+@dataclass(frozen=True)
+class ResearchWorkflowResult:
+    answer: GroundedAnswer
+    iterations: int
+    verification_passed: bool
+    verification_reason: str | None
 
 
 class ResearchService:
     def __init__(
         self,
+        graph: Any,
         *,
-        retrieval: RetrievalService,
-        model: ResearchModelService,
+        max_iterations: int,
     ) -> None:
-        self._retrieval = retrieval
-        self._model = model
+        self._graph = graph
+        self._max_iterations = max_iterations
 
     async def answer(
         self,
         question: str,
-    ) -> ModelResult[GroundedAnswer]:
-        chunks = self._retrieval.retrieve_context(question)
+        *,
+        thread_id: str,
+    ) -> ResearchWorkflowResult:
+        config = {
+            "configurable": {
+                "thread_id": thread_id,
+            }
+        }
 
-        context = build_context(chunks)
-
-        result = await self._model.answer_from_context(
-            question=question,
-            context=context,
+        state = await self._graph.ainvoke(
+            {
+                "question": question,
+                "iteration": 0,
+                "max_iterations": self._max_iterations,
+                "repair_attempts": 0,
+                "max_repair_attempts": 1,
+            },
+            config=config,
         )
 
-        validation = validate_citations(
-            answer=result.output,
-            context_chunks=chunks,
-        )
-
-        if not validation.valid:
-            raise InvalidCitationError(
-                f"Model returned unsupported chunk IDs: {validation.invalid_chunk_ids}"
+        return ResearchWorkflowResult(
+            answer=state["answer"],
+            iterations=state.get(
+                "iteration",
+                0,
             )
-
-        return result
+            + 1,
+            verification_passed=state.get(
+                "verification_passed",
+                False,
+            ),
+            verification_reason=state.get("verification_reason"),
+        )

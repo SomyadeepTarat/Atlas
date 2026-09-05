@@ -1,7 +1,10 @@
 from atlas.models.base import ModelClient
 from atlas.models.types import ModelResult
 from atlas.schemas.model import (
+    AnswerVerification,
+    EvidenceAssessment,
     GroundedAnswer,
+    ResearchPlan,
     ResearchPreviewResponse,
 )
 
@@ -43,6 +46,70 @@ Rules:
 """.strip()
 
 
+RESEARCH_PLAN_SYSTEM_PROMPT = """
+You are the planning component of Atlas,
+an evidence-oriented research system.
+
+Create a small set of focused retrieval queries.
+
+Rules:
+- Generate between 1 and 4 queries.
+- Queries should cover distinct information needs.
+- Avoid redundant queries.
+- Do not answer the research question.
+- Do not fabricate sources.
+- Return output strictly matching the requested schema.
+""".strip()
+
+
+EVIDENCE_ASSESSMENT_SYSTEM_PROMPT = """
+You evaluate whether retrieved evidence is sufficient
+to answer a research question.
+
+Rules:
+- Judge only the supplied evidence.
+- Do not answer the research question.
+- Mark sufficient=false if major information is missing.
+- Do not rely on internal model knowledge.
+- Return output strictly matching the requested schema.
+""".strip()
+
+
+ANSWER_VERIFICATION_SYSTEM_PROMPT = """
+You verify evidence-grounded answers.
+
+Determine whether the answer is supported by the supplied evidence.
+
+Rules:
+- Use only the supplied evidence.
+- Identify unsupported factual claims.
+- Do not improve or rewrite the answer.
+- Do not introduce outside knowledge.
+- Treat a claim as supported only if the supplied evidence justifies it.
+- If the answer correctly states that the evidence is insufficient,
+  and the evidence is indeed insufficient, mark supported=true.
+- An appropriate abstention is a valid, supported answer.
+- Return output strictly matching the requested schema.
+""".strip()
+
+
+ANSWER_REPAIR_SYSTEM_PROMPT = """
+You repair an evidence-grounded answer.
+
+The supplied verification result identifies problems
+with the current answer.
+
+Rules:
+- Use only the supplied evidence.
+- Correct unsupported factual claims.
+- Remove claims that cannot be supported.
+- Preserve supported information where possible.
+- Do not introduce outside knowledge.
+- Ensure cited chunk IDs come from the supplied evidence.
+- Return output strictly matching the requested schema.
+""".strip()
+
+
 class ResearchModelService:
     def __init__(
         self,
@@ -54,13 +121,6 @@ class ResearchModelService:
         self,
         question: str,
     ) -> ModelResult[ResearchPreviewResponse]:
-        """
-        Generate a lightweight research preview directly from the model.
-
-        This method does not use retrieval. It is primarily useful for
-        testing the model runtime and for simple model-only responses.
-        """
-
         user_prompt = f"""
 Research question:
 
@@ -75,36 +135,139 @@ Provide a concise research preview.
             output_schema=ResearchPreviewResponse,
         )
 
+    async def create_research_plan(
+        self,
+        question: str,
+    ) -> ModelResult[ResearchPlan]:
+        user_prompt = f"""
+RESEARCH QUESTION:
+
+{question}
+
+Create focused retrieval queries that would help
+gather enough evidence to answer this question.
+""".strip()
+
+        return await self._model_client.generate_structured(
+            system_prompt=RESEARCH_PLAN_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            output_schema=ResearchPlan,
+        )
+
+    async def assess_evidence(
+        self,
+        *,
+        question: str,
+        context: str,
+    ) -> ModelResult[EvidenceAssessment]:
+        user_prompt = f"""
+RESEARCH QUESTION:
+
+{question}
+
+RETRIEVED EVIDENCE:
+
+{context}
+
+Determine whether this evidence is sufficient
+to answer the research question reliably.
+""".strip()
+
+        return await self._model_client.generate_structured(
+            system_prompt=EVIDENCE_ASSESSMENT_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            output_schema=EvidenceAssessment,
+        )
+
     async def answer_from_context(
         self,
         *,
         question: str,
         context: str,
     ) -> ModelResult[GroundedAnswer]:
-        """
-        Generate an answer grounded exclusively in retrieved context.
-
-        Retrieval itself is intentionally handled elsewhere. This service
-        only receives already-prepared context and asks the model to reason
-        over it.
-        """
-
         user_prompt = f"""
-Research question:
+RESEARCH QUESTION:
 
 {question}
 
-Retrieved context:
+RETRIEVED EVIDENCE:
 
 {context}
 
-Answer the research question using only the retrieved context.
+Answer the research question using only the
+retrieved evidence.
 
-Return the IDs of every chunk that directly supports your answer.
+Return the IDs of every chunk that directly
+supports your answer.
 """.strip()
 
         return await self._model_client.generate_structured(
             system_prompt=GROUNDED_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            output_schema=GroundedAnswer,
+        )
+
+    async def verify_answer(
+        self,
+        *,
+        question: str,
+        context: str,
+        answer: GroundedAnswer,
+    ) -> ModelResult[AnswerVerification]:
+        user_prompt = f"""
+QUESTION:
+
+{question}
+
+EVIDENCE:
+
+{context}
+
+ANSWER:
+
+{answer.model_dump_json(indent=2)}
+
+Verify whether every factual claim in the answer
+is supported by the supplied evidence.
+""".strip()
+
+        return await self._model_client.generate_structured(
+            system_prompt=ANSWER_VERIFICATION_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            output_schema=AnswerVerification,
+        )
+
+    async def repair_answer(
+        self,
+        *,
+        question: str,
+        context: str,
+        answer: GroundedAnswer,
+        verification: AnswerVerification,
+    ) -> ModelResult[GroundedAnswer]:
+        user_prompt = f"""
+QUESTION:
+
+{question}
+
+EVIDENCE:
+
+{context}
+
+CURRENT ANSWER:
+
+{answer.model_dump_json(indent=2)}
+
+VERIFICATION RESULT:
+
+{verification.model_dump_json(indent=2)}
+
+Repair the answer so that all factual claims are
+supported by the evidence.
+""".strip()
+
+        return await self._model_client.generate_structured(
+            system_prompt=ANSWER_REPAIR_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             output_schema=GroundedAnswer,
         )
