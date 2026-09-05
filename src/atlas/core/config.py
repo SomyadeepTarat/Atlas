@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     minimum_rerank_score: float | None = None
 
     research_max_iterations: int = 3
+    max_tool_calls: int = 5
 
 
 @lru_cache

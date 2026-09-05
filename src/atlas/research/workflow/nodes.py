@@ -1,7 +1,4 @@
 from __future__ import annotations
-from unittest import result
-
-from mypy.state import state
 
 from atlas.models.service import ResearchModelService
 from atlas.research.workflow.state import (
@@ -20,6 +17,13 @@ from atlas.retrieval.service import (
 from atlas.retrieval.types import (
     RetrievedChunk,
 )
+from atlas.tools.executor import (
+    ToolExecutor,
+)
+from atlas.tools.registry import (
+    ToolRegistry,
+)
+from atlas.tools.types import ToolExecutionContext, ToolPermission
 
 
 class ResearchWorkflowNodes:
@@ -28,9 +32,13 @@ class ResearchWorkflowNodes:
         *,
         retrieval: RetrievalService,
         model: ResearchModelService,
+        tool_registry: ToolRegistry,
+        tool_executor: ToolExecutor,
     ) -> None:
         self._retrieval = retrieval
         self._model = model
+        self._tool_registry = tool_registry
+        self._tool_executor = tool_executor
 
     async def plan(
         self,
@@ -136,30 +144,30 @@ class ResearchWorkflowNodes:
         }
 
     async def verify(
-    self,
-    state: ResearchWorkflowState,
+        self,
+        state: ResearchWorkflowState,
     ) -> ResearchWorkflowState:
         question = state.get("question", "")
         context = state.get("context", "")
         answer = state.get("answer")
         if answer is None:
-                    raise ValueError(
-                        "Cannot repair answer: no answer exists in workflow state."
-                    )
+            raise ValueError(
+                "Cannot repair answer: no answer exists in workflow state."
+            )
 
         result = await self._model.verify_answer(
-        question=question,
-        context=context,
-        answer=answer,
-    )
+            question=question,
+            context=context,
+            answer=answer,
+        )
 
         verification = result.output
 
         return {
-        "verification": verification,
-        "verification_passed": verification.supported,
-        "verification_reason": verification.reason,
-    }
+            "verification": verification,
+            "verification_passed": verification.supported,
+            "verification_reason": verification.reason,
+        }
 
     async def repair(
         self,
@@ -219,6 +227,47 @@ class ResearchWorkflowNodes:
             "queries": list(result.output.queries),
             "iteration": iteration + 1,
         }
+
+    async def decide_tool(
+        self,
+        state: ResearchWorkflowState,
+    ) -> dict:
+        result = await self._model.choose_tool(
+            question=state.get("question", ""),
+            tool_specs=self._tool_registry.specifications(),
+        )
+
+        decision = result.output
+
+        return {
+            "tool_required": decision.use_tool,
+            "tool_name": decision.tool_name,
+            "tool_arguments": decision.arguments,
+        }
+
+    async def execute_tool(
+        self,
+        state: ResearchWorkflowState,
+    ) -> dict:
+        tool_name = state.get("tool_name")
+
+        if not tool_name:
+            return {"tool_output": None}
+
+        result = await self._tool_executor.execute(
+            tool_name=tool_name,
+            raw_input=state.get("tool_arguments", {}),
+            context=ToolExecutionContext(
+                permissions=frozenset(
+                    {
+                        ToolPermission.CALCULATE,
+                        ToolPermission.DOCUMENT_READ,
+                    }
+                )
+            ),
+        )
+
+        return {"tool_output": result.output.model_dump()}
 
     @staticmethod
     def _merge_chunks(

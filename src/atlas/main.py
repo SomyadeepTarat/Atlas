@@ -15,6 +15,9 @@ from atlas.api.routes.research import (
 from atlas.api.routes.retrieval import (
     router as retrieval_router,
 )
+from atlas.api.routes.tools import (
+    router as tools_router,
+)
 from atlas.core.config import get_settings
 
 settings = get_settings()
@@ -47,5 +50,10 @@ app.include_router(
 
 app.include_router(
     retrieval_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    tools_router,
     prefix="/api/v1",
 )

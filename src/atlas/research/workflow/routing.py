@@ -1,17 +1,18 @@
-from atlas.research.workflow.state import (
-    ResearchWorkflowState,
-)
+from typing import Literal
+
+from atlas.research.workflow.state import ResearchWorkflowState
 
 
 def route_after_evidence(
     state: ResearchWorkflowState,
-) -> str:
-    evidence_sufficient = state.get(
+) -> Literal[
+    "synthesize",
+    "advance_query",
+]:
+    if state.get(
         "evidence_sufficient",
         False,
-    )
-
-    if evidence_sufficient:
+    ):
         return "synthesize"
 
     iteration = state.get(
@@ -32,13 +33,14 @@ def route_after_evidence(
 
 def route_after_verification(
     state: ResearchWorkflowState,
-) -> str:
-    verification_passed = state.get(
+) -> Literal[
+    "finish",
+    "repair",
+]:
+    if state.get(
         "verification_passed",
         False,
-    )
-
-    if verification_passed:
+    ):
         return "finish"
 
     repair_attempts = state.get(
@@ -55,3 +57,15 @@ def route_after_verification(
         return "repair"
 
     return "finish"
+
+
+def route_after_tool_decision(
+    state: ResearchWorkflowState,
+) -> Literal[
+    "execute_tool",
+    "plan",
+]:
+    if state.get("tool_required") and state.get("tool_name") == "calculate":
+        return "execute_tool"
+
+    return "plan"

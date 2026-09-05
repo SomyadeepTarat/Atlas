@@ -34,3 +34,10 @@ class ResearchWorkflowState(TypedDict, total=False):
     verification_passed: bool
     verification_reason: str | None
     evidence_sufficient: bool
+
+    tool_name: str | None
+    tool_arguments: dict
+    tool_output: dict | None
+    tool_required: bool
+    tool_calls: int
+    max_tool_calls: int

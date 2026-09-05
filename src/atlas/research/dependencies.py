@@ -14,6 +14,10 @@ from atlas.research.workflow.nodes import (
 from atlas.retrieval.dependencies import (
     get_retrieval_service,
 )
+from atlas.tools.dependencies import (
+    get_tool_executor,
+    get_tool_registry,
+)
 
 
 @lru_cache
@@ -23,6 +27,8 @@ def get_research_service() -> ResearchService:
     nodes = ResearchWorkflowNodes(
         retrieval=get_retrieval_service(),
         model=get_research_model_service(),
+        tool_registry=get_tool_registry(),
+        tool_executor=get_tool_executor(),
     )
 
     graph = build_research_graph(

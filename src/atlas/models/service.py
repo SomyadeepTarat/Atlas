@@ -6,6 +6,7 @@ from atlas.schemas.model import (
     GroundedAnswer,
     ResearchPlan,
     ResearchPreviewResponse,
+    ToolDecision,
 )
 
 PREVIEW_SYSTEM_PROMPT = """
@@ -270,4 +271,36 @@ supported by the evidence.
             system_prompt=ANSWER_REPAIR_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             output_schema=GroundedAnswer,
+        )
+
+    async def choose_tool(
+        self,
+        *,
+        question: str,
+        tool_specs: list[dict],
+    ) -> ModelResult[ToolDecision]:
+        system_prompt = """
+You decide whether a tool is needed.
+
+Rules:
+- Use only tools provided in the tool list.
+- Prefer deterministic tools for calculations.
+- Use document search for questions requiring
+  indexed document evidence.
+- Do not invent tool names.
+- If no tool is needed, set use_tool=false.
+""".strip()
+
+        user_prompt = f"""
+QUESTION:
+{question}
+
+AVAILABLE TOOLS:
+{tool_specs}
+""".strip()
+
+        return await self._model_client.generate_structured(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            output_schema=ToolDecision,
         )

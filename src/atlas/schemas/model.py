@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -131,3 +133,23 @@ class AnswerVerification(BaseModel):
     unsupported_claims: list[str] = Field(
         default_factory=list,
     )
+
+
+class ToolDecision(BaseModel):
+    use_tool: bool
+
+    tool_name: str | None = None
+
+    arguments: dict = Field(default_factory=dict)
+
+    reason: str
+
+
+class ToolExecuteRequest(BaseModel):
+    tool_name: str
+
+    arguments: dict[str, Any]
+
+    permissions: list[str]
+
+    approved_tools: list[str] = Field(default_factory=list)
