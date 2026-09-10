@@ -35,4 +35,13 @@ eval-retrieval:
 
 eval:
 	$(MAKE) eval-retrieval
+
+mcp-dev:
+	uv run mcp dev mcp_server.py
+
+mcp-run:
+	uv run python scripts/run_mcp_server.py
+
+test-mcp:
+	uv run pytest tests/mcp
 	

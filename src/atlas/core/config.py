@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     research_max_iterations: int = 3
     max_tool_calls: int = 5
 
+    atlas_mcp_url: str = "http://localhost:8001/mcp"
+
 
 @lru_cache
 def get_settings() -> Settings:
