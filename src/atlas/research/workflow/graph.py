@@ -1,4 +1,5 @@
-from langgraph.checkpoint.memory import MemorySaver
+from typing import Any
+
 from langgraph.graph import (
     END,
     START,
@@ -20,6 +21,7 @@ from atlas.research.workflow.state import (
 def build_research_graph(
     *,
     nodes: ResearchWorkflowNodes,
+    checkpointer: Any,
 ):
     builder = StateGraph(ResearchWorkflowState)
 
@@ -78,7 +80,7 @@ def build_research_graph(
         route_after_evidence,
         {
             "synthesize": "synthesize",
-            "advance_query": "expand_retrieval",
+            "advance_query": ("expand_retrieval"),
         },
     )
 
@@ -106,8 +108,4 @@ def build_research_graph(
         "verify",
     )
 
-    checkpointer = MemorySaver()
-
-    return builder.compile(
-        checkpointer=checkpointer,
-    )
+    return builder.compile(checkpointer=checkpointer)

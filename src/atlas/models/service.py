@@ -4,6 +4,7 @@ from atlas.schemas.model import (
     AnswerVerification,
     EvidenceAssessment,
     GroundedAnswer,
+    MemoryCandidate,
     ResearchPlan,
     ResearchPreviewResponse,
     ToolDecision,
@@ -108,6 +109,40 @@ Rules:
 - Do not introduce outside knowledge.
 - Ensure cited chunk IDs come from the supplied evidence.
 - Return output strictly matching the requested schema.
+""".strip()
+
+MEMORY_EXTRACTION_SYSTEM_PROMPT = """
+You identify information that may be useful as persistent memory
+for future research interactions.
+
+Store information only when it is likely to remain useful beyond
+the current message.
+
+Suitable memories include:
+- stable user preferences,
+- ongoing projects,
+- important project decisions,
+- persistent goals,
+- reusable instructions,
+- durable facts explicitly supplied by the user.
+
+Do not store:
+- temporary conversational details,
+- greetings,
+- one-off questions,
+- model-generated speculation,
+- information already represented only by retrieved evidence,
+- sensitive information unless explicitly required by the system.
+
+When storing memory:
+- make the content concise,
+- make it understandable without the original conversation,
+- do not add information that was not supplied,
+- choose an appropriate memory_type.
+
+If no useful persistent memory exists, set should_store=false.
+
+Return output strictly matching the supplied schema.
 """.strip()
 
 
@@ -303,4 +338,27 @@ AVAILABLE TOOLS:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             output_schema=ToolDecision,
+        )
+
+    async def extract_memory_candidate(
+        self,
+        *,
+        user_message: str,
+        assistant_message: str,
+    ) -> ModelResult[MemoryCandidate]:
+        user_prompt = f"""
+USER MESSAGE:
+{user_message}
+
+ASSISTANT MESSAGE:
+{assistant_message}
+
+Determine whether this interaction contains information
+worth storing as persistent memory.
+""".strip()
+
+        return await self._model_client.generate_structured(
+            system_prompt=(MEMORY_EXTRACTION_SYSTEM_PROMPT),
+            user_prompt=user_prompt,
+            output_schema=MemoryCandidate,
         )

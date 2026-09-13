@@ -53,3 +53,18 @@ run-trace-console:
 	TELEMETRY_ENABLED=true \
 	TELEMETRY_CONSOLE_EXPORT=true \
 	uv run uvicorn atlas.main:app --app-dir src --reload
+
+infra-up:
+	docker compose up -d
+
+infra-down:
+	docker compose down
+
+infra-status:
+	docker compose ps
+
+db-migrate:
+	uv run alembic upgrade head
+
+db-revision:
+	uv run alembic revision --autogenerate -m "$(m)"

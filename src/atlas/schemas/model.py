@@ -153,3 +153,29 @@ class ToolExecuteRequest(BaseModel):
     permissions: list[str]
 
     approved_tools: list[str] = Field(default_factory=list)
+
+
+class MemoryCandidate(BaseModel):
+    should_store: bool = Field(
+        description=(
+            "Whether this information is useful enough to persist as long-term memory."
+        )
+    )
+
+    memory_type: str | None = Field(
+        default=None,
+        description=(
+            "Category of memory, such as preference, fact, project, or instruction."
+        ),
+    )
+
+    content: str | None = Field(
+        default=None,
+        description=("Concise normalized memory content."),
+    )
+
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=("Confidence that this information should be stored."),
+    )

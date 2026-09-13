@@ -1,4 +1,4 @@
-from functools import lru_cache
+from fastapi import Request
 
 from atlas.core.config import get_settings
 from atlas.models.dependencies import (
@@ -20,8 +20,9 @@ from atlas.tools.dependencies import (
 )
 
 
-@lru_cache
-def get_research_service() -> ResearchService:
+def get_research_service(
+    request: Request,
+) -> ResearchService:
     settings = get_settings()
 
     nodes = ResearchWorkflowNodes(
@@ -31,8 +32,11 @@ def get_research_service() -> ResearchService:
         tool_executor=get_tool_executor(),
     )
 
+    checkpointer = request.app.state.langgraph_checkpointer
+
     graph = build_research_graph(
         nodes=nodes,
+        checkpointer=checkpointer,
     )
 
     return ResearchService(

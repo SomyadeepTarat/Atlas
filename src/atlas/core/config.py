@@ -66,6 +66,10 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    database_url: str = "postgresql+asyncpg://atlas:atlas@localhost:5432/atlas"
+
+    langgraph_database_url: str = "postgresql://atlas:atlas@localhost:5432/atlas"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -3,6 +3,9 @@ from contextlib import (
 )
 
 from fastapi import FastAPI
+from langgraph.checkpoint.postgres.aio import (
+    AsyncPostgresSaver,
+)
 from opentelemetry.instrumentation.fastapi import (
     FastAPIInstrumentor,
 )
@@ -53,7 +56,16 @@ async def lifespan(
 ):
     get_langfuse()
 
-    yield
+    settings = get_settings()
+
+    async with AsyncPostgresSaver.from_conn_string(
+        settings.langgraph_database_url
+    ) as checkpointer:
+        await checkpointer.setup()
+
+        app.state.langgraph_checkpointer = checkpointer
+
+        yield
 
     shutdown_tracing()
 
