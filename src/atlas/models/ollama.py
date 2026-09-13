@@ -1,22 +1,17 @@
-import json
-from time import monotonic
 from typing import TypeVar
 
 import httpx
-from pydantic import BaseModel, ValidationError
+from opentelemetry.trace import (
+    Status,
+    StatusCode,
+)
+from pydantic import BaseModel
 
 from atlas.models.base import ModelClient
-from atlas.models.errors import (
-    ModelInvalidOutputError,
-    ModelTimeoutError,
-    ModelUnavailableError,
-)
 from atlas.models.types import (
-    ModelMetadata,
     ModelResult,
-    ModelTimings,
-    ModelUsage,
 )
+from atlas.telemetry.tracing import tracer
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -42,6 +37,15 @@ class OllamaModelClient(ModelClient):
         self._model = model
         self._timeout_seconds = timeout_seconds
 
+    async def _generate(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        output_schema: type[T],
+    ) -> ModelResult[T]:
+        raise NotImplementedError
+
     async def generate_structured(
         self,
         *,
@@ -49,103 +53,57 @@ class OllamaModelClient(ModelClient):
         user_prompt: str,
         output_schema: type[T],
     ) -> ModelResult[T]:
-        payload = {
-            "model": self._model,
-            "stream": False,
-            "think": False,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ],
-            "format": output_schema.model_json_schema(),
-            "options": {
-                "temperature": 0,
-            },
-        }
+        with tracer.start_as_current_span("model.generate") as span:
+            span.set_attribute(
+                "gen_ai.provider.name",
+                "ollama",
+            )
 
-        started_at = monotonic()
+        span.set_attribute(
+            "gen_ai.request.model",
+            self._model,
+        )
+
+        span.set_attribute(
+            "atlas.model.output_schema",
+            output_schema.__name__,
+        )
 
         try:
-            async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-                response = await client.post(
-                    f"{self._base_url}/api/chat",
-                    json=payload,
+            result = await self._generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                output_schema=output_schema,
+            )
+
+        except Exception as exc:
+            span.record_exception(exc)
+
+            span.set_status(
+                Status(
+                    StatusCode.ERROR,
+                    str(exc),
                 )
+            )
 
-                response.raise_for_status()
+            raise
 
-        except httpx.TimeoutException as exc:
-            raise ModelTimeoutError("Model generation timed out.") from exc
-
-        except httpx.HTTPError as exc:
-            raise ModelUnavailableError("Unable to communicate with Ollama.") from exc
-
-        total_seconds = monotonic() - started_at
-
-        try:
-            response_data = response.json()
-
-            raw_content = response_data["message"]["content"]
-
-            parsed_json = json.loads(raw_content)
-
-            output = output_schema.model_validate(parsed_json)
-
-        except (
-            KeyError,
-            json.JSONDecodeError,
-            ValidationError,
-            TypeError,
-        ) as exc:
-            raise ModelInvalidOutputError(
-                "Model returned output that violated the expected schema."
-            ) from exc
-
-        input_tokens = response_data.get(
-            "prompt_eval_count",
-            0,
+        span.set_attribute(
+            "atlas.llm.input_tokens",
+            result.metadata.usage.input_tokens,
         )
 
-        output_tokens = response_data.get(
-            "eval_count",
-            0,
+        span.set_attribute(
+            "atlas.llm.output_tokens",
+            result.metadata.usage.output_tokens,
         )
 
-        usage = ModelUsage(
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            total_tokens=input_tokens + output_tokens,
+        span.set_attribute(
+            "atlas.llm.total_seconds",
+            result.metadata.timings.total_seconds,
         )
 
-        timings = ModelTimings(
-            total_seconds=total_seconds,
-            load_seconds=nanoseconds_to_seconds(response_data.get("load_duration")),
-            prompt_eval_seconds=nanoseconds_to_seconds(
-                response_data.get("prompt_eval_duration")
-            ),
-            generation_seconds=nanoseconds_to_seconds(
-                response_data.get("eval_duration")
-            ),
-        )
-
-        metadata = ModelMetadata(
-            provider="ollama",
-            model=self._model,
-            attempts=1,
-            usage=usage,
-            timings=timings,
-        )
-
-        return ModelResult(
-            output=output,
-            metadata=metadata,
-        )
+        return result
 
     async def is_ready(self) -> bool:
         try:

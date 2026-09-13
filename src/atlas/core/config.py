@@ -51,6 +51,21 @@ class Settings(BaseSettings):
 
     atlas_mcp_url: str = "http://localhost:8001/mcp"
 
+    telemetry_enabled: bool = True
+
+    telemetry_console_export: bool = False
+
+    langfuse_enabled: bool = False
+
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_base_url: str = "https://cloud.langfuse.com"
+
+    telemetry_capture_content: bool = False
+    langfuse_tracing_environment: str = "development"
+
+    log_level: str = "INFO"
+
 
 @lru_cache
 def get_settings() -> Settings:

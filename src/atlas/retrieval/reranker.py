@@ -5,6 +5,9 @@ from sentence_transformers import (
 from atlas.retrieval.types import (
     RetrievedChunk,
 )
+from atlas.telemetry.tracing import (
+    tracer,
+)
 
 
 class Reranker:
@@ -13,7 +16,20 @@ class Reranker:
         *,
         model_name: str,
     ) -> None:
-        self._model = CrossEncoder(model_name)
+        self._model_name = model_name
+
+        self._model: CrossEncoder | None = None
+
+    def _get_model(
+        self,
+    ) -> CrossEncoder:
+        if self._model is not None:
+            return self._model
+
+        with tracer.start_as_current_span("reranker-model-load"):
+            self._model = CrossEncoder(self._model_name)
+
+        return self._model
 
     def rerank(
         self,
@@ -22,43 +38,70 @@ class Reranker:
         chunks: list[RetrievedChunk],
         limit: int,
     ) -> list[RetrievedChunk]:
-        if not chunks:
-            return []
-
-        pairs = [
-            (
-                query,
-                chunk.text,
+        with tracer.start_as_current_span("reranker") as span:
+            span.set_attribute(
+                "atlas.reranker.model",
+                self._model_name,
             )
-            for chunk in chunks
-        ]
 
-        scores = self._model.predict(pairs)
-
-        reranked = [
-            RetrievedChunk(
-                chunk_id=chunk.chunk_id,
-                document_id=(chunk.document_id),
-                filename=chunk.filename,
-                page_number=(chunk.page_number),
-                chunk_index=(chunk.chunk_index),
-                text=chunk.text,
-                retrieval_score=float(score),
+            span.set_attribute(
+                ("atlas.reranker.input_count"),
+                len(chunks),
             )
-            for chunk, score in zip(
-                chunks,
-                scores,
-                strict=True,
+
+            if not chunks:
+                return []
+
+            pairs = [
+                (
+                    query,
+                    chunk.text,
+                )
+                for chunk in chunks
+            ]
+
+            model = self._get_model()
+
+            try:
+                scores = model.predict(pairs)
+
+            except Exception as exc:
+                span.record_exception(exc)
+
+                raise
+
+            reranked = [
+                RetrievedChunk(
+                    chunk_id=(chunk.chunk_id),
+                    document_id=(chunk.document_id),
+                    filename=(chunk.filename),
+                    page_number=(chunk.page_number),
+                    chunk_index=(chunk.chunk_index),
+                    text=chunk.text,
+                    retrieval_score=(chunk.retrieval_score),
+                    rerank_score=(float(score)),
+                )
+                for chunk, score in zip(
+                    chunks,
+                    scores,
+                    strict=True,
+                )
+            ]
+
+            reranked.sort(
+                key=lambda item: (
+                    item.rerank_score
+                    if (item.rerank_score is not None)
+                    else float("-inf")
+                ),
+                reverse=True,
             )
-        ]
 
-        reranked.sort(
-            key=lambda item: (
-                item.retrieval_score
-                if item.retrieval_score is not None
-                else float("-inf")
-            ),
-            reverse=True,
-        )
+            result = reranked[:limit]
 
-        return reranked[:limit]
+            span.set_attribute(
+                ("atlas.reranker.output_count"),
+                len(result),
+            )
+
+            return result

@@ -1,13 +1,34 @@
 from pathlib import Path
 
-from atlas.retrieval.chunker import TextChunker
-from atlas.retrieval.context import select_context_chunks
-from atlas.retrieval.deduplication import deduplicate_adjacent_chunks
-from atlas.retrieval.embeddings import EmbeddingService
-from atlas.retrieval.loader import PDFLoader
-from atlas.retrieval.reranker import Reranker
-from atlas.retrieval.store import QdrantVectorStore
-from atlas.retrieval.types import RetrievedChunk
+from opentelemetry import trace
+
+from atlas.retrieval.chunker import (
+    TextChunker,
+)
+from atlas.retrieval.context import (
+    select_context_chunks,
+)
+from atlas.retrieval.deduplication import (
+    deduplicate_adjacent_chunks,
+)
+from atlas.retrieval.embeddings import (
+    EmbeddingService,
+)
+from atlas.retrieval.loader import (
+    PDFLoader,
+)
+from atlas.retrieval.reranker import (
+    Reranker,
+)
+from atlas.retrieval.store import (
+    QdrantVectorStore,
+)
+from atlas.retrieval.types import (
+    RetrievedChunk,
+)
+from atlas.telemetry.tracing import (
+    tracer,
+)
 
 
 class RetrievalService:
@@ -31,82 +52,116 @@ class RetrievalService:
         self._reranker = reranker
 
         self._candidate_k = candidate_k
+
         self._rerank_top_k = rerank_top_k
+
         self._context_top_k = context_top_k
+
         self._max_context_chars = max_context_chars
 
     def ingest_pdf(
         self,
-        path: Path,
-        *,
+        file_path: str | Path,
         filename: str,
     ) -> tuple[str, int]:
-        pages = self._loader.load(
-            path,
-            filename=filename,
-        )
+        with tracer.start_as_current_span("retrieval-ingestion") as span:
+            path = Path(file_path)
 
-        if not pages:
-            raise ValueError("No extractable text was found in the PDF.")
+            pages = self._loader.load(
+                path,
+                filename=filename,
+            )
 
-        chunks = self._chunker.chunk_pages(pages)
+            if not pages:
+                raise ValueError("PDF contains no readable pages.")
 
-        if not chunks:
-            raise ValueError("No chunks could be created from the PDF.")
+            document_id = pages[0].document_id
 
-        texts = [chunk.text for chunk in chunks]
+            span.set_attribute(
+                "atlas.document.id",
+                document_id,
+            )
 
-        dense_vectors = self._embeddings.embed_documents_dense(texts)
+            chunks = self._chunker.chunk_pages(pages)
 
-        sparse_vectors = self._embeddings.embed_documents_sparse(texts)
+            if not chunks:
+                return (
+                    document_id,
+                    0,
+                )
 
-        self._vector_store.upsert(
-            chunks=chunks,
-            dense_vectors=dense_vectors,
-            sparse_vectors=sparse_vectors,
-        )
+            texts = [chunk.text for chunk in chunks]
 
-        return (
-            pages[0].document_id,
-            len(chunks),
-        )
+            dense_vectors = self._embeddings.embed_documents_dense(texts)
+
+            sparse_vectors = self._embeddings.embed_documents_sparse(texts)
+
+            self._vector_store.upsert(
+                chunks=chunks,
+                dense_vectors=(dense_vectors),
+                sparse_vectors=(sparse_vectors),
+            )
+
+            return (
+                document_id,
+                len(chunks),
+            )
 
     def search_candidates(
         self,
         query: str,
         *,
-        document_ids: list[str] | None = None,
+        document_ids: (list[str] | None) = None,
     ) -> list[RetrievedChunk]:
         dense_query = self._embeddings.embed_query_dense(query)
 
         sparse_query = self._embeddings.embed_query_sparse(query)
 
         return self._vector_store.hybrid_search(
-            dense_query=dense_query,
-            sparse_query=sparse_query,
-            limit=self._candidate_k,
-            document_ids=document_ids,
+            dense_query=(dense_query),
+            sparse_query=(sparse_query),
+            limit=(self._candidate_k),
+            document_ids=(document_ids),
         )
 
     def retrieve_context(
         self,
         query: str,
+        *,
+        document_ids: (list[str] | None) = None,
     ) -> list[RetrievedChunk]:
-        candidates = self.search_candidates(query)
+        candidates = self.search_candidates(
+            query,
+            document_ids=(document_ids),
+        )
 
         reranked = self._reranker.rerank(
             query=query,
             chunks=candidates,
-            limit=self._rerank_top_k,
+            limit=(self._rerank_top_k),
         )
 
         deduplicated = deduplicate_adjacent_chunks(reranked)
 
-        return select_context_chunks(
+        selected = select_context_chunks(
             deduplicated,
-            max_chunks=self._context_top_k,
-            max_chars=self._max_context_chars,
+            max_chunks=(self._context_top_k),
+            max_chars=(self._max_context_chars),
         )
+
+        current_span = trace.get_current_span()
+
+        current_span.set_attribute(
+            ("atlas.retrieval.candidate_count"),
+            len(candidates),
+        )
+
+        current_span.set_attribute(
+            ("atlas.retrieval.final_count"),
+            len(selected),
+        )
+
+        return selected
 
     def retrieve_for_experiment(
         self,
@@ -118,44 +173,45 @@ class RetrievalService:
         use_reranker: bool,
         use_deduplication: bool,
     ) -> list[RetrievedChunk]:
-        if mode == "dense":
-            dense_query = self._embeddings.embed_query_dense(query)
+        with tracer.start_as_current_span("retrieval-experiment"):
+            if mode == "dense":
+                dense_query = self._embeddings.embed_query_dense(query)
 
-            chunks = self._vector_store.dense_search(
-                query_vector=dense_query,
-                limit=candidate_k,
-            )
+                chunks = self._vector_store.dense_search(
+                    query_vector=(dense_query),
+                    limit=(candidate_k),
+                )
 
-        elif mode == "sparse":
-            sparse_query = self._embeddings.embed_query_sparse(query)
+            elif mode == "sparse":
+                sparse_query = self._embeddings.embed_query_sparse(query)
 
-            chunks = self._vector_store.sparse_search(
-                query_vector=sparse_query,
-                limit=candidate_k,
-            )
+                chunks = self._vector_store.sparse_search(
+                    query_vector=(sparse_query),
+                    limit=(candidate_k),
+                )
 
-        elif mode == "hybrid":
-            dense_query = self._embeddings.embed_query_dense(query)
+            elif mode == "hybrid":
+                dense_query = self._embeddings.embed_query_dense(query)
 
-            sparse_query = self._embeddings.embed_query_sparse(query)
+                sparse_query = self._embeddings.embed_query_sparse(query)
 
-            chunks = self._vector_store.hybrid_search(
-                dense_query=dense_query,
-                sparse_query=sparse_query,
-                limit=candidate_k,
-            )
+                chunks = self._vector_store.hybrid_search(
+                    dense_query=(dense_query),
+                    sparse_query=(sparse_query),
+                    limit=(candidate_k),
+                )
 
-        else:
-            raise ValueError(f"Unsupported retrieval mode: {mode}")
+            else:
+                raise ValueError(f"Unsupported retrieval mode: {mode}")
 
-        if use_reranker:
-            chunks = self._reranker.rerank(
-                query=query,
-                chunks=chunks,
-                limit=candidate_k,
-            )
+            if use_reranker:
+                chunks = self._reranker.rerank(
+                    query=query,
+                    chunks=chunks,
+                    limit=(candidate_k),
+                )
 
-        if use_deduplication:
-            chunks = deduplicate_adjacent_chunks(chunks)
+            if use_deduplication:
+                chunks = deduplicate_adjacent_chunks(chunks)
 
-        return chunks[:final_k]
+            return chunks[:final_k]

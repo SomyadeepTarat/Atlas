@@ -1,8 +1,15 @@
-from fastapi import FastAPI
-
-from atlas.api.middleware import (
-    RequestIDMiddleware,
+from contextlib import (
+    asynccontextmanager,
 )
+
+from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import (
+    FastAPIInstrumentor,
+)
+from opentelemetry.instrumentation.httpx import (
+    HTTPXClientInstrumentor,
+)
+
 from atlas.api.routes.documents import (
     router as documents_router,
 )
@@ -19,18 +26,49 @@ from atlas.api.routes.tools import (
     router as tools_router,
 )
 from atlas.core.config import get_settings
+from atlas.telemetry.logging import (
+    configure_logging,
+)
+from atlas.telemetry.middleware import (
+    RequestContextMiddleware,
+)
+from atlas.telemetry.setup import (
+    configure_telemetry,
+)
+from atlas.telemetry.tracing import (
+    get_langfuse,
+    shutdown_tracing,
+)
 
 settings = get_settings()
+configure_telemetry(settings)
+configure_logging(level=settings.log_level)
+
+HTTPXClientInstrumentor().instrument()
+
+
+@asynccontextmanager
+async def lifespan(
+    app: FastAPI,
+):
+    get_langfuse()
+
+    yield
+
+    shutdown_tracing()
 
 
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
     description=("Evidence-driven AI research agent."),
+    lifespan=lifespan,
 )
 
+FastAPIInstrumentor.instrument_app(app)
 
-app.add_middleware(RequestIDMiddleware)
+
+app.add_middleware(RequestContextMiddleware)
 
 
 app.include_router(

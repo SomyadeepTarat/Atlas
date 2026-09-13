@@ -44,4 +44,12 @@ mcp-run:
 
 test-mcp:
 	uv run pytest tests/mcp
-	
+
+run-observed:
+	TELEMETRY_ENABLED=true \
+	uv run uvicorn atlas.main:app --app-dir src --reload
+
+run-trace-console:
+	TELEMETRY_ENABLED=true \
+	TELEMETRY_CONSOLE_EXPORT=true \
+	uv run uvicorn atlas.main:app --app-dir src --reload
