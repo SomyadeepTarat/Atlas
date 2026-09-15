@@ -41,6 +41,7 @@ class SlowTool(
         requires_approval=False,
         timeout_seconds=0.01,
         max_attempts=1,
+        idempotent=True,
     )
 
     async def execute(

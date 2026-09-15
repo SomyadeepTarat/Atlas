@@ -70,6 +70,15 @@ class Settings(BaseSettings):
 
     langgraph_database_url: str = "postgresql://atlas:atlas@localhost:5432/atlas"
 
+    research_deadline_seconds: float = 90.0
+
+    model_concurrency_limit: int = 2
+    reranker_concurrency_limit: int = 2
+    tool_concurrency_limit: int = 10
+
+    circuit_failure_threshold: int = 3
+    circuit_recovery_seconds: float = 30.0
+
 
 @lru_cache
 def get_settings() -> Settings:

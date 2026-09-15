@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from atlas.tools.errors import (
     ToolExecutionError,
+    ToolExecutionUnknownError,
     ToolInputValidationError,
     ToolOutputValidationError,
     ToolTimeoutError,
@@ -15,7 +16,9 @@ from atlas.tools.registry import ToolRegistry
 from atlas.tools.types import (
     ToolExecutionContext,
     ToolMetadata,
+    ToolOutcome,
     ToolResult,
+    ToolRisk,
 )
 
 
@@ -36,6 +39,7 @@ class ToolExecutor:
     ) -> Any:
         try:
             return tool.input_schema.model_validate(raw_input)
+
         except ValidationError as exc:
             raise ToolInputValidationError("Tool input failed validation.") from exc
 
@@ -65,6 +69,7 @@ class ToolExecutor:
     ) -> Any:
         try:
             return tool.output_schema.model_validate(output_data)
+
         except ValidationError as exc:
             raise ToolOutputValidationError("Tool output failed validation.") from exc
 
@@ -74,7 +79,7 @@ class ToolExecutor:
         tool_name: str,
         raw_input: dict[str, Any],
         context: ToolExecutionContext,
-    ) -> ToolResult:
+    ) -> ToolResult[Any]:
         tool = self._registry.get(tool_name)
 
         if tool is None:
@@ -92,10 +97,20 @@ class ToolExecutor:
 
         started_at = monotonic()
 
-        output = await self._execute_once(
-            tool=tool,
-            input_data=validated_input,
-        )
+        try:
+            output = await self._execute_once(
+                tool=tool,
+                input_data=validated_input,
+            )
+
+        except ToolTimeoutError as exc:
+            if tool.policy.risk == ToolRisk.READ_ONLY:
+                raise
+
+            raise ToolExecutionUnknownError(
+                f"Tool '{tool.name}' may have completed, "
+                "but Atlas could not confirm the result."
+            ) from exc
 
         duration_seconds = monotonic() - started_at
 
@@ -106,11 +121,12 @@ class ToolExecutor:
 
         metadata = ToolMetadata(
             tool_name=tool.name,
-            duration_seconds=duration_seconds,
             attempts=1,
+            duration_seconds=duration_seconds,
         )
 
         return ToolResult(
             output=validated_output,
             metadata=metadata,
+            outcome=ToolOutcome.SUCCESS,
         )

@@ -39,6 +39,7 @@ class MockWriteTool(
         requires_approval=True,
         timeout_seconds=2.0,
         max_attempts=1,
+        idempotent=False,
     )
 
     async def execute(

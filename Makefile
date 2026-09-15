@@ -68,3 +68,10 @@ db-migrate:
 
 db-revision:
 	uv run alembic revision --autogenerate -m "$(m)"
+
+test-reliability:
+	uv run pytest tests/faults -v
+
+reliability:
+	$(MAKE) quality
+	$(MAKE) test-reliability

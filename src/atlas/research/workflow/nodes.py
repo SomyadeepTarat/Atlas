@@ -90,7 +90,8 @@ class ResearchWorkflowNodes:
             new_chunks: list[RetrievedChunk] = []
 
             for query in queries:
-                new_chunks.extend(self._retrieval.retrieve_context(query))
+                result = self._retrieval.retrieve_context(query)
+                new_chunks.extend(result.chunks)
 
             merged = self._merge_chunks(existing_chunks + new_chunks)
 

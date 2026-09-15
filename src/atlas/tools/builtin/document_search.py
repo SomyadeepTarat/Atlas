@@ -68,6 +68,7 @@ class DocumentSearchTool(
         requires_approval=False,
         timeout_seconds=10.0,
         max_attempts=1,
+        idempotent=True,
     )
 
     def __init__(
@@ -80,10 +81,11 @@ class DocumentSearchTool(
         self,
         input_data: DocumentSearchInput,
     ) -> DocumentSearchOutput:
-        chunks = await asyncio.to_thread(
+        retrieval_result = await asyncio.to_thread(
             self._retrieval.retrieve_context,
             input_data.query,
         )
+        chunks = retrieval_result.chunks
 
         return DocumentSearchOutput(
             results=[

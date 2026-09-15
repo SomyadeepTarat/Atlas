@@ -59,7 +59,10 @@ _ALLOWED_UNARY_OPERATORS: dict[
 def _evaluate_node(
     node: ast.AST,
 ) -> float:
-    if isinstance(node, ast.Constant):
+    if isinstance(
+        node,
+        ast.Constant,
+    ):
         if isinstance(node.value, bool) or not isinstance(
             node.value,
             (int, float),
@@ -68,7 +71,10 @@ def _evaluate_node(
 
         return float(node.value)
 
-    if isinstance(node, ast.BinOp):
+    if isinstance(
+        node,
+        ast.BinOp,
+    ):
         binary_operator_fn = _ALLOWED_BINARY_OPERATORS.get(type(node.op))
 
         if binary_operator_fn is None:
@@ -83,7 +89,10 @@ def _evaluate_node(
             right,
         )
 
-    if isinstance(node, ast.UnaryOp):
+    if isinstance(
+        node,
+        ast.UnaryOp,
+    ):
         unary_operator_fn = _ALLOWED_UNARY_OPERATORS.get(type(node.op))
 
         if unary_operator_fn is None:
@@ -130,6 +139,7 @@ class CalculatorTool(
         requires_approval=False,
         timeout_seconds=2.0,
         max_attempts=1,
+        idempotent=True,
     )
 
     async def execute(
@@ -138,6 +148,7 @@ class CalculatorTool(
     ) -> CalculatorOutput:
         try:
             result = safe_calculate(input_data.expression)
+
         except (
             SyntaxError,
             ValueError,

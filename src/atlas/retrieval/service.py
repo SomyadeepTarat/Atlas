@@ -1,12 +1,9 @@
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-
-from opentelemetry import trace
 
 from atlas.retrieval.chunker import (
     TextChunker,
-)
-from atlas.retrieval.context import (
-    select_context_chunks,
 )
 from atlas.retrieval.deduplication import (
     deduplicate_adjacent_chunks,
@@ -29,6 +26,22 @@ from atlas.retrieval.types import (
 from atlas.telemetry.tracing import (
     tracer,
 )
+
+
+class RetrievalModeUsed(StrEnum):
+    HYBRID_RERANK = "hybrid_rerank"
+    HYBRID = "hybrid"
+    DENSE = "dense"
+    SPARSE = "sparse"
+
+
+@dataclass(frozen=True)
+class RetrievalResult:
+    chunks: list[RetrievedChunk]
+
+    mode: RetrievalModeUsed
+
+    degraded: bool
 
 
 class RetrievalService:
@@ -127,41 +140,40 @@ class RetrievalService:
     def retrieve_context(
         self,
         query: str,
-        *,
-        document_ids: (list[str] | None) = None,
-    ) -> list[RetrievedChunk]:
-        candidates = self.search_candidates(
-            query,
-            document_ids=(document_ids),
+    ) -> RetrievalResult:
+        try:
+            candidates = self.search_candidates(query)
+        except Exception:
+            dense_query = self._embeddings.embed_query_dense(query)
+            chunks = self._vector_store.dense_search(
+                query_vector=dense_query,
+                limit=self._candidate_k,
+            )
+
+            return RetrievalResult(
+                chunks=chunks[: self._context_top_k],
+                mode=RetrievalModeUsed.DENSE,
+                degraded=True,
+            )
+
+        try:
+            reranked = self._reranker.rerank(
+                query=query,
+                chunks=candidates,
+                limit=self._rerank_top_k,
+            )
+        except Exception:
+            return RetrievalResult(
+                chunks=candidates[: self._context_top_k],
+                mode=RetrievalModeUsed.HYBRID,
+                degraded=True,
+            )
+
+        return RetrievalResult(
+            chunks=reranked[: self._context_top_k],
+            mode=RetrievalModeUsed.HYBRID_RERANK,
+            degraded=False,
         )
-
-        reranked = self._reranker.rerank(
-            query=query,
-            chunks=candidates,
-            limit=(self._rerank_top_k),
-        )
-
-        deduplicated = deduplicate_adjacent_chunks(reranked)
-
-        selected = select_context_chunks(
-            deduplicated,
-            max_chunks=(self._context_top_k),
-            max_chars=(self._max_context_chars),
-        )
-
-        current_span = trace.get_current_span()
-
-        current_span.set_attribute(
-            ("atlas.retrieval.candidate_count"),
-            len(candidates),
-        )
-
-        current_span.set_attribute(
-            ("atlas.retrieval.final_count"),
-            len(selected),
-        )
-
-        return selected
 
     def retrieve_for_experiment(
         self,

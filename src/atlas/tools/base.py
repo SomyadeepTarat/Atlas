@@ -22,7 +22,7 @@ class Tool[
         self,
         input_data: InputT,
     ) -> OutputT:
-        """Execute this tool."""
+        raise NotImplementedError
 
     def specification(
         self,

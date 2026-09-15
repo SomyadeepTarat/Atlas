@@ -6,7 +6,9 @@ from fastapi import (
     HTTPException,
 )
 
-from atlas.schemas.model import ToolExecuteRequest
+from atlas.schemas.model import (
+    ToolExecuteRequest,
+)
 from atlas.tools.dependencies import (
     get_tool_executor,
 )

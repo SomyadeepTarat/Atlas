@@ -1,36 +1,40 @@
 class ToolError(Exception):
-    """Base tool-layer error."""
-
-    retryable: bool = False
+    """Base exception for all tool-related failures."""
 
 
 class ToolNotFoundError(ToolError):
-    """Unknown tool requested."""
-
-
-class ToolInputValidationError(ToolError):
-    """Tool input violated schema."""
-
-
-class ToolOutputValidationError(ToolError):
-    """Tool returned invalid output."""
-
-
-class ToolPermissionDeniedError(ToolError):
-    """Caller lacks permission."""
-
-
-class ToolApprovalRequiredError(ToolError):
-    """Execution requires approval."""
-
-
-class ToolTimeoutError(ToolError):
-    """Tool exceeded timeout."""
-
-    retryable = True
+    """Raised when a requested tool is not registered."""
 
 
 class ToolExecutionError(ToolError):
-    """Tool implementation failed."""
+    """Raised when tool execution fails."""
 
-    retryable = True
+
+class ToolAuthorizationError(ToolError):
+    """Raised when a tool call is blocked by policy."""
+
+
+class ToolPermissionDeniedError(ToolAuthorizationError):
+    """Raised when required permissions are missing."""
+
+
+class ToolApprovalRequiredError(ToolAuthorizationError):
+    """Raised when explicit approval is required."""
+
+
+class ToolInputValidationError(ToolExecutionError):
+    """Raised when tool input validation fails."""
+
+
+class ToolOutputValidationError(ToolExecutionError):
+    """Raised when tool output validation fails."""
+
+
+class ToolTimeoutError(ToolExecutionError):
+    """Raised when tool execution times out."""
+
+
+class ToolExecutionUnknownError(ToolExecutionError):
+    """Raised when execution may have succeeded but cannot be confirmed."""
+
+    retryable = False

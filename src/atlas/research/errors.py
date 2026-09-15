@@ -4,3 +4,7 @@ class ResearchError(Exception):
 
 class InvalidCitationError(ResearchError):
     """Model referenced evidence not supplied."""
+
+
+class WorkflowDeadlineExceededError(RuntimeError):
+    """Raised when the research graph exceeds its execution budget."""
