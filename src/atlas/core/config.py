@@ -93,6 +93,8 @@ class Settings(BaseSettings):
 
     max_document_chunks: int = 5000
 
+    frontend_origin: str = "http://localhost:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:

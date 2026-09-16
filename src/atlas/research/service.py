@@ -48,13 +48,19 @@ class ResearchService:
         self._max_iterations = max_iterations
         self._deadline_seconds = deadline_seconds
 
+    @property
+    def graph(self) -> Any:
+        return self._graph
+
     async def answer(
         self,
         question: str,
         *,
         thread_id: str,
     ) -> ResearchWorkflowResult:
+
         langfuse = get_langfuse()
+
         try:
             thread_uuid = UUID(thread_id)
         except ValueError as exc:

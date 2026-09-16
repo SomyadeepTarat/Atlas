@@ -49,3 +49,7 @@ data/qdrant/
 
 # DeepEval local state / cache
 .deepeval/
+
+node_modules/
+
+.next

@@ -1,0 +1,15 @@
+html {
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+}
+
+::selection {
+  background: color-mix(
+    in oklab,
+    var(--primary) 20%,
+    transparent
+  );
+}

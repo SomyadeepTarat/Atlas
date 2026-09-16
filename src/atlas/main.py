@@ -3,6 +3,9 @@ from contextlib import (
 )
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import (
+    CORSMiddleware,
+)
 from langgraph.checkpoint.postgres.aio import (
     AsyncPostgresSaver,
 )
@@ -25,6 +28,9 @@ from atlas.api.routes.research import (
 from atlas.api.routes.retrieval import (
     router as retrieval_router,
 )
+from atlas.api.routes.threads import (
+    router as threads_router,
+)
 from atlas.api.routes.tools import (
     router as tools_router,
 )
@@ -32,9 +38,7 @@ from atlas.core.config import get_settings
 from atlas.telemetry.logging import (
     configure_logging,
 )
-from atlas.telemetry.middleware import (
-    RequestContextMiddleware,
-)
+from atlas.telemetry.middleware import RequestContextMiddleware
 from atlas.telemetry.setup import (
     configure_telemetry,
 )
@@ -79,9 +83,27 @@ app = FastAPI(
 
 FastAPIInstrumentor.instrument_app(app)
 
-
 app.add_middleware(RequestContextMiddleware)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=True,
+    allow_methods=[
+        "GET",
+        "POST",
+        "DELETE",
+        "OPTIONS",
+    ],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Request-ID",
+    ],
+    expose_headers=[
+        "X-Request-ID",
+    ],
+)
 
 app.include_router(
     health_router,
@@ -105,5 +127,10 @@ app.include_router(
 
 app.include_router(
     tools_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    threads_router,
     prefix="/api/v1",
 )

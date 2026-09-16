@@ -34,3 +34,20 @@ async def create_thread(
         id=thread.id,
         title=thread.title,
     )
+
+
+@router.get("")
+async def list_threads(
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ThreadResponse]:
+    repository = ThreadRepository(session)
+
+    threads = await repository.list_threads()
+
+    return [
+        ThreadResponse(
+            id=thread.id,
+            title=thread.title,
+        )
+        for thread in threads
+    ]

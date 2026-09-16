@@ -72,3 +72,18 @@ class ThreadRepository:
         result = await self._session.execute(statement)
 
         return list(result.scalars().all())
+
+    async def list_threads(
+        self,
+        *,
+        limit: int = 50,
+    ) -> list[ResearchThread]:
+        statement = (
+            select(ResearchThread)
+            .order_by(ResearchThread.updated_at.desc())
+            .limit(limit)
+        )
+
+        result = await self._session.execute(statement)
+
+        return list(result.scalars().all())

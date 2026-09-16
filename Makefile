@@ -89,3 +89,24 @@ security:
 	$(MAKE) security-unit
 	$(MAKE) security-bandit
 	$(MAKE) security-deps
+
+frontend-dev:
+	cd frontend && pnpm dev
+
+frontend-typecheck:
+	cd frontend && pnpm typecheck
+
+frontend-lint:
+	cd frontend && pnpm lint
+
+frontend-build:
+	cd frontend && pnpm build
+
+frontend-quality:
+	$(MAKE) frontend-typecheck
+	$(MAKE) frontend-lint
+	$(MAKE) frontend-build
+
+quality-all:
+	$(MAKE) quality
+	$(MAKE) frontend-quality

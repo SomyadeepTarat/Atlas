@@ -3,7 +3,6 @@ import secrets
 from dataclasses import replace
 from typing import TypeVar
 
-import jiter
 from pydantic import BaseModel
 
 from atlas.models.base import (
@@ -171,7 +170,7 @@ class RetryModelClient(ModelClient):
                             delay += _jitter_random.uniform(
                                 -jitter,
                                 jitter,
-                        )
+                            )
 
                         delay = max(
                             delay,
@@ -186,9 +185,7 @@ class RetryModelClient(ModelClient):
                 await asyncio.sleep(delay)
 
         if last_error is None:
-            raise RuntimeError(
-        "Retry loop exhausted without recording an error."
-    )
+            raise RuntimeError("Retry loop exhausted without recording an error.")
 
         raise last_error
 

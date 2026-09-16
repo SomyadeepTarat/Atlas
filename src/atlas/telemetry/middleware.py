@@ -32,31 +32,27 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
 
-            duration_seconds = monotonic() - started_at
+            response.headers["X-Request-ID"] = request_id
 
             logger.info(
                 "http.request.completed",
                 extra={
-                    "http_method": (request.method),
-                    "http_path": (request.url.path),
+                    "method": (request.method),
+                    "path": (request.url.path),
                     "status_code": (response.status_code),
-                    "duration_seconds": (duration_seconds),
+                    "duration_seconds": (monotonic() - started_at),
                 },
             )
-
-            response.headers["X-Request-ID"] = request_id
 
             return response
 
         except Exception:
-            duration_seconds = monotonic() - started_at
-
             logger.exception(
                 "http.request.failed",
                 extra={
-                    "http_method": (request.method),
-                    "http_path": (request.url.path),
-                    "duration_seconds": (duration_seconds),
+                    "method": (request.method),
+                    "path": (request.url.path),
+                    "duration_seconds": (monotonic() - started_at),
                 },
             )
 

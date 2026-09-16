@@ -1,10 +1,14 @@
 from fastapi import Request
+from wrapt import lru_cache
 
 from atlas.core.config import get_settings
 from atlas.models.dependencies import (
     get_research_model_service,
 )
 from atlas.research.service import ResearchService
+from atlas.research.streaming import (
+    ResearchStreamAdapter,
+)
 from atlas.research.workflow.graph import (
     build_research_graph,
 )
@@ -41,5 +45,17 @@ def get_research_service(
 
     return ResearchService(
         graph=graph,
+        max_iterations=(settings.research_max_iterations),
+    )
+
+
+@lru_cache
+def get_research_stream_adapter(
+    request: Request,
+) -> ResearchStreamAdapter:
+    settings = get_settings()
+
+    return ResearchStreamAdapter(
+        graph=get_research_service(request).graph,
         max_iterations=(settings.research_max_iterations),
     )
