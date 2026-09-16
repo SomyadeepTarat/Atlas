@@ -44,7 +44,10 @@ def get_retrieval_service() -> RetrievalService:
     store.ensure_collection()
 
     return RetrievalService(
-        loader=PDFLoader(),
+        loader=PDFLoader(
+            max_pages=settings.max_pdf_pages,
+            max_extracted_chars=settings.max_extracted_chars,
+        ),
         chunker=TextChunker(
             chunk_size=settings.chunk_size_chars,
             overlap=settings.chunk_overlap_chars,

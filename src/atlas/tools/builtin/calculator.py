@@ -1,4 +1,5 @@
 import ast
+import math
 import operator
 from collections.abc import Callable
 
@@ -10,6 +11,9 @@ from atlas.tools.types import (
     ToolPolicy,
     ToolRisk,
 )
+
+MAX_ABS_NUMBER = 1_000_000_000_000
+MAX_EXPONENT = 100
 
 
 class CalculatorInput(BaseModel):
@@ -56,6 +60,18 @@ _ALLOWED_UNARY_OPERATORS: dict[
 }
 
 
+def _validate_number(
+    value: float,
+) -> float:
+    if not math.isfinite(value):
+        raise ValueError("Numeric result must be finite.")
+
+    if abs(value) > MAX_ABS_NUMBER:
+        raise ValueError("Numeric value exceeds allowed range.")
+
+    return value
+
+
 def _evaluate_node(
     node: ast.AST,
 ) -> float:
@@ -69,7 +85,7 @@ def _evaluate_node(
         ):
             raise ValueError("Only numbers are allowed.")
 
-        return float(node.value)
+        return _validate_number(float(node.value))
 
     if isinstance(
         node,
@@ -84,10 +100,19 @@ def _evaluate_node(
 
         right = _evaluate_node(node.right)
 
-        return binary_operator_fn(
+        if isinstance(
+            node.op,
+            ast.Pow,
+        ):
+            if abs(right) > MAX_EXPONENT:
+                raise ValueError("Exponent exceeds allowed range.")
+
+        result = binary_operator_fn(
             left,
             right,
         )
+
+        return _validate_number(float(result))
 
     if isinstance(
         node,
@@ -100,7 +125,9 @@ def _evaluate_node(
 
         value = _evaluate_node(node.operand)
 
-        return unary_operator_fn(value)
+        result = unary_operator_fn(value)
+
+        return _validate_number(float(result))
 
     raise ValueError("Unsupported expression.")
 

@@ -32,8 +32,10 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "bandit>=1.9.4",
     "deepeval>=4.2.1",
     "mypy>=2.3.1",
+    "pip-audit>=2.10.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.5",
@@ -65,3 +67,8 @@ indent-style = "space"
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends", "fastapi.File"]
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+]

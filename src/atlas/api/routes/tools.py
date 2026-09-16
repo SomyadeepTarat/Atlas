@@ -1,5 +1,3 @@
-from typing import Any, cast
-
 from fastapi import (
     APIRouter,
     Depends,
@@ -15,6 +13,8 @@ from atlas.tools.dependencies import (
 from atlas.tools.errors import (
     ToolApprovalRequiredError,
     ToolError,
+    ToolExecutionUnknownError,
+    ToolNotFoundError,
     ToolPermissionDeniedError,
 )
 from atlas.tools.executor import (
@@ -39,8 +39,7 @@ async def execute_tool(
     try:
         permissions = frozenset(ToolPermission(item) for item in payload.permissions)
 
-        executor_impl = cast(Any, executor)
-        result = await executor_impl.execute(
+        result = await executor.execute(
             tool_name=payload.tool_name,
             raw_input=payload.arguments,
             context=ToolExecutionContext(
@@ -50,13 +49,20 @@ async def execute_tool(
         )
 
         return {
-            "output": (result.output.model_dump()),
+            "output": result.output.model_dump(),
+            "outcome": result.outcome.value,
             "meta": {
                 "tool_name": (result.metadata.tool_name),
                 "attempts": (result.metadata.attempts),
                 "duration_seconds": (result.metadata.duration_seconds),
             },
         }
+
+    except ToolNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
 
     except ToolPermissionDeniedError as exc:
         raise HTTPException(
@@ -67,6 +73,12 @@ async def execute_tool(
     except ToolApprovalRequiredError as exc:
         raise HTTPException(
             status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    except ToolExecutionUnknownError as exc:
+        raise HTTPException(
+            status_code=503,
             detail=str(exc),
         ) from exc
 

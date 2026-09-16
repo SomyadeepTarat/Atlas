@@ -7,9 +7,9 @@ from fastapi import (
     File,
     HTTPException,
     UploadFile,
-    status,
 )
 
+from atlas.core.config import get_settings
 from atlas.retrieval.dependencies import (
     get_retrieval_service,
 )
@@ -19,6 +19,16 @@ from atlas.retrieval.service import (
 from atlas.schemas.retrieval import (
     DocumentIngestResponse,
 )
+from atlas.security.errors import (
+    InvalidFileError,
+    ResourceLimitError,
+)
+from atlas.security.validation import (
+    safe_display_filename,
+    validate_pdf_upload,
+)
+
+settings = get_settings()
 
 router = APIRouter(
     prefix="/documents",
@@ -34,21 +44,29 @@ async def upload_document(
     file: UploadFile = File(...),
     retrieval: RetrievalService = Depends(get_retrieval_service),
 ) -> DocumentIngestResponse:
-    filename = file.filename or "document.pdf"
-
-    if not filename.lower().endswith(".pdf"):
-        raise HTTPException(
-            status_code=(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE),
-            detail=("Only PDF files are supported in this milestone."),
-        )
+    filename = safe_display_filename(file.filename or "document.pdf")
 
     content = await file.read()
 
-    if not content:
+    try:
+        validate_pdf_upload(
+            filename=filename,
+            content=content,
+            max_bytes=settings.max_pdf_bytes,
+            max_filename_chars=settings.max_filename_chars,
+        )
+
+    except InvalidFileError as exc:
         raise HTTPException(
             status_code=400,
-            detail="Uploaded file is empty.",
-        )
+            detail=str(exc),
+        ) from exc
+
+    except ResourceLimitError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail=str(exc),
+        ) from exc
 
     temp_path: Path | None = None
 

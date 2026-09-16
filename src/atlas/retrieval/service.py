@@ -23,6 +23,9 @@ from atlas.retrieval.store import (
 from atlas.retrieval.types import (
     RetrievedChunk,
 )
+from atlas.security.content import (
+    contains_suspicious_instructions,
+)
 from atlas.telemetry.tracing import (
     tracer,
 )
@@ -57,6 +60,7 @@ class RetrievalService:
         rerank_top_k: int,
         context_top_k: int,
         max_context_chars: int,
+        max_document_chunks: int = 10_000,
     ) -> None:
         self._loader = loader
         self._chunker = chunker
@@ -71,6 +75,8 @@ class RetrievalService:
         self._context_top_k = context_top_k
 
         self._max_context_chars = max_context_chars
+
+        self._max_document_chunks = max_document_chunks
 
     def ingest_pdf(
         self,
@@ -97,11 +103,25 @@ class RetrievalService:
 
             chunks = self._chunker.chunk_pages(pages)
 
+            if len(chunks) > self._max_document_chunks:
+                raise ValueError(
+                    "Document produced too many chunks: "
+                    f"{len(chunks)} exceeds the limit of "
+                    f"{self._max_document_chunks}."
+                )
+
             if not chunks:
                 return (
                     document_id,
                     0,
                 )
+            suspicious_count = sum(
+                contains_suspicious_instructions(chunk.text) for chunk in chunks
+            )
+            span.set_attribute(
+                "atlas.security.suspicious_chunk_count",
+                suspicious_count,
+            )
 
             texts = [chunk.text for chunk in chunks]
 

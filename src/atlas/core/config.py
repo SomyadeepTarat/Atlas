@@ -79,6 +79,20 @@ class Settings(BaseSettings):
     circuit_failure_threshold: int = 3
     circuit_recovery_seconds: float = 30.0
 
+    max_user_question_chars: int = 10_000
+
+    max_pdf_bytes: int = 20 * 1024 * 1024
+
+    max_pdf_pages: int = 300
+
+    max_extracted_chars: int = 2_000_000
+
+    max_filename_chars: int = 255
+
+    enable_debug_tool_api: bool = False
+
+    max_document_chunks: int = 5000
+
 
 @lru_cache
 def get_settings() -> Settings:

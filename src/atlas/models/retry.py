@@ -1,8 +1,9 @@
 import asyncio
-import random
+import secrets
 from dataclasses import replace
 from typing import TypeVar
 
+import jiter
 from pydantic import BaseModel
 
 from atlas.models.base import (
@@ -18,6 +19,8 @@ from atlas.telemetry.tracing import (
     get_langfuse,
     tracer,
 )
+
+_jitter_random = secrets.SystemRandom()
 
 T = TypeVar(
     "T",
@@ -164,9 +167,10 @@ class RetryModelClient(ModelClient):
 
                         jitter = delay * self._jitter_ratio
 
-                        delay += random.uniform(
-                            -jitter,
-                            jitter,
+                        if jitter > 0:
+                            delay += _jitter_random.uniform(
+                                -jitter,
+                                jitter,
                         )
 
                         delay = max(
@@ -181,7 +185,10 @@ class RetryModelClient(ModelClient):
 
                 await asyncio.sleep(delay)
 
-        assert last_error is not None
+        if last_error is None:
+            raise RuntimeError(
+        "Retry loop exhausted without recording an error."
+    )
 
         raise last_error
 

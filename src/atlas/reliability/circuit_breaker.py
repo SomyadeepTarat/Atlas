@@ -83,7 +83,10 @@ class CircuitBreaker:
                 return
 
         if self._state == CircuitState.OPEN:
-            assert self._opened_at is not None
+            if self._opened_at is None:
+                raise RuntimeError(
+            "Circuit breaker is open but opened_at is unset."
+        )
 
             elapsed = monotonic() - self._opened_at
 

@@ -75,3 +75,17 @@ test-reliability:
 reliability:
 	$(MAKE) quality
 	$(MAKE) test-reliability
+	
+security-unit:
+	uv run pytest tests/security -v
+
+security-bandit:
+	uv run bandit -r src
+
+security-deps:
+	uv run pip-audit
+
+security:
+	$(MAKE) security-unit
+	$(MAKE) security-bandit
+	$(MAKE) security-deps

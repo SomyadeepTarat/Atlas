@@ -91,5 +91,5 @@ async def test_graph_recursion_is_converted_to_domain_error() -> None:
     ):
         await service.answer(
             "Test question",
-            thread_id="fault-test-thread",
+            thread_id=("00000000-0000-0000-0000-000000000001"),
         )

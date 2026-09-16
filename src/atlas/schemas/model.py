@@ -2,6 +2,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from atlas.core.config import get_settings
+
+settings = get_settings()
+
 
 class ResearchPreviewRequest(BaseModel):
     question: str = Field(
@@ -78,7 +82,7 @@ class GroundedAnswer(BaseModel):
 class ResearchAnswerRequest(BaseModel):
     question: str = Field(
         min_length=3,
-        max_length=2000,
+        max_length=(settings.max_user_question_chars),
     )
 
 

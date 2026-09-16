@@ -12,6 +12,9 @@ from atlas.memory.policy import (
 from atlas.models.service import (
     ResearchModelService,
 )
+from atlas.security.trust import (
+    ContentSource,
+)
 
 
 class MemoryService:
@@ -31,7 +34,10 @@ class MemoryService:
         *,
         user_message: str,
         thread_id: UUID,
+        source: ContentSource,
     ) -> None:
+        if source is not ContentSource.USER:
+            return
         extract_memory_candidate = self._model.extract_memory_candidate
         result = await extract_memory_candidate(
             user_message=user_message,

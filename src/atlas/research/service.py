@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from time import monotonic
 from typing import Any
+from uuid import UUID
 
 from langfuse import propagate_attributes
 from langgraph.errors import GraphRecursionError
@@ -14,6 +15,7 @@ from atlas.research.errors import (
     WorkflowDeadlineExceededError,
 )
 from atlas.schemas.model import GroundedAnswer
+from atlas.security.trust import ContentSource
 from atlas.telemetry.logging import (
     bind_log_context,
     get_logger,
@@ -53,6 +55,10 @@ class ResearchService:
         thread_id: str,
     ) -> ResearchWorkflowResult:
         langfuse = get_langfuse()
+        try:
+            thread_uuid = UUID(thread_id)
+        except ValueError as exc:
+            raise ValueError(f"Invalid research thread ID: {thread_id}") from exc
 
         tokens = bind_log_context(thread_id=thread_id)
 
@@ -181,3 +187,9 @@ class ResearchService:
 
         finally:
             reset_log_context(tokens)
+
+        await self._memory_service.consider_message(
+            user_message=question,
+            thread_id=thread_uuid,
+            source=ContentSource.USER,
+        )
