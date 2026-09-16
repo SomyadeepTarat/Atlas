@@ -1,6 +1,7 @@
 from collections.abc import (
     AsyncIterator,
 )
+import logging
 from uuid import uuid4
 
 from fastapi import (
@@ -43,6 +44,7 @@ router = APIRouter(
     prefix="/research",
     tags=["research"],
 )
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -84,7 +86,9 @@ async def answer_research_question(
 async def stream_research(
     thread_id: str,
     payload: ResearchStreamRequest,
-    adapter: ResearchStreamAdapter = Depends(get_research_stream_adapter),
+    adapter: ResearchStreamAdapter = Depends(
+        get_research_stream_adapter
+    ),
 ) -> AsyncIterator[ServerSentEvent]:
     sequence = 0
 
@@ -98,19 +102,33 @@ async def stream_research(
             yield ServerSentEvent(
                 event=event.type.value,
                 id=str(event.sequence),
-                data=event.model_dump(mode="json"),
+                data=event.model_dump(
+                    mode="json"
+                ),
             )
 
     except Exception:
+        logger.exception(
+            "research.stream.failed",
+            extra={
+                "thread_id": thread_id,
+                "sequence": sequence,
+            },
+        )
+
         error = ResearchStreamEvent(
             type=ResearchEventType.ERROR,
             stage=ResearchStage.COMPLETE,
-            message=("Research could not be completed."),
+            message=(
+                "Research could not be completed."
+            ),
             sequence=sequence + 1,
         )
 
         yield ServerSentEvent(
             event="error",
             id=str(error.sequence),
-            data=error.model_dump(mode="json"),
+            data=error.model_dump(
+                mode="json"
+            ),
         )

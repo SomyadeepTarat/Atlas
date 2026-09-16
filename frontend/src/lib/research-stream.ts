@@ -26,22 +26,19 @@ export async function streamResearch({
   onEvent,
 }: StreamResearchOptions): Promise<void> {
   const response = await fetch(
-    `${config.apiUrl}/research/threads/${threadId}/stream`,
-    {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-      },
-
-      body: JSON.stringify({
-        question,
-      }),
-
-      signal,
+  `${config.apiBaseUrl}/research/threads/${threadId}/stream`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
     },
-  )
+    body: JSON.stringify({
+      question,
+    }),
+    signal,
+  },
+)
 
   if (!response.ok) {
     throw new Error(

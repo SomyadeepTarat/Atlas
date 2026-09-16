@@ -1,12 +1,14 @@
 from time import monotonic
 from uuid import uuid4
 
-from fastapi import Request
-from starlette.middleware.base import (
-    BaseHTTPMiddleware,
-    RequestResponseEndpoint,
+from starlette.datastructures import MutableHeaders
+from starlette.types import (
+    ASGIApp,
+    Message,
+    Receive,
+    Scope,
+    Send,
 )
-from starlette.responses import Response
 
 from atlas.telemetry.logging import (
     bind_log_context,
@@ -14,49 +16,119 @@ from atlas.telemetry.logging import (
     reset_log_context,
 )
 
+
 logger = get_logger(__name__)
 
 
-class RequestContextMiddleware(BaseHTTPMiddleware):
-    async def dispatch(
+class RequestContextMiddleware:
+    def __init__(
         self,
-        request: Request,
-        call_next: RequestResponseEndpoint,
-    ) -> Response:
-        request_id = request.headers.get("X-Request-ID") or str(uuid4())
+        app: ASGIApp,
+    ) -> None:
+        self._app = app
 
-        tokens = bind_log_context(request_id=request_id)
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if scope["type"] != "http":
+            await self._app(
+                scope,
+                receive,
+                send,
+            )
+            return
+
+        headers = MutableHeaders(
+            scope=scope
+        )
+
+        request_id = (
+            headers.get("X-Request-ID")
+            or str(uuid4())
+        )
+
+        tokens = bind_log_context(
+            request_id=request_id
+        )
 
         started_at = monotonic()
 
-        try:
-            response = await call_next(request)
+        status_code = 500
 
-            response.headers["X-Request-ID"] = request_id
+        async def send_wrapper(
+            message: Message,
+        ) -> None:
+            nonlocal status_code
+
+            if (
+                message["type"]
+                == "http.response.start"
+            ):
+                status_code = message[
+                    "status"
+                ]
+
+                response_headers = (
+                    MutableHeaders(
+                        scope=message
+                    )
+                )
+
+                response_headers[
+                    "X-Request-ID"
+                ] = request_id
+
+            await send(message)
+
+        try:
+            await self._app(
+                scope,
+                receive,
+                send_wrapper,
+            )
 
             logger.info(
                 "http.request.completed",
                 extra={
-                    "method": (request.method),
-                    "path": (request.url.path),
-                    "status_code": (response.status_code),
-                    "duration_seconds": (monotonic() - started_at),
+                    "method": scope.get(
+                        "method"
+                    ),
+                    "path": scope.get(
+                        "path"
+                    ),
+                    "status_code": (
+                        status_code
+                    ),
+                    "duration_seconds": (
+                        monotonic()
+                        - started_at
+                    ),
                 },
             )
-
-            return response
 
         except Exception:
             logger.exception(
                 "http.request.failed",
                 extra={
-                    "method": (request.method),
-                    "path": (request.url.path),
-                    "duration_seconds": (monotonic() - started_at),
+                    "method": scope.get(
+                        "method"
+                    ),
+                    "path": scope.get(
+                        "path"
+                    ),
+                    "duration_seconds": (
+                        monotonic()
+                        - started_at
+                    ),
                 },
             )
 
             raise
 
         finally:
-            reset_log_context(tokens)
+            reset_log_context(
+                tokens
+            )

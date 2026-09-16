@@ -1,10 +1,8 @@
 import { config } from "./config"
-
 import type {
   DocumentUploadResponse,
   Thread,
 } from "@/lib/types"
-
 
 async function assertOk(
   response: Response,
@@ -13,16 +11,15 @@ async function assertOk(
     return
   }
 
-  let message =
-    `Atlas request failed (${response.status}).`
+  let message = "Atlas request failed."
 
   try {
     const body = await response.json()
 
-    if (
-      typeof body?.detail === "string"
-    ) {
+    if (typeof body?.detail === "string") {
       message = body.detail
+    } else if (body?.detail) {
+      message = JSON.stringify(body.detail)
     }
   } catch {
     // Keep fallback message.
@@ -31,12 +28,11 @@ async function assertOk(
   throw new Error(message)
 }
 
-
 export async function createThread(
   title?: string,
 ): Promise<Thread> {
   const response = await fetch(
-    `${config.apiUrl}/api/v1/threads`,
+    `${config.apiBaseUrl}/threads`,
     {
       method: "POST",
       headers: {
@@ -53,34 +49,19 @@ export async function createThread(
   return response.json()
 }
 
-
 export async function uploadDocument(
   file: File,
 ): Promise<DocumentUploadResponse> {
   const form = new FormData()
 
-  form.append(
-    "file",
-    file,
-  )
+  form.append("file", file)
 
   const response = await fetch(
-    `${config.apiUrl}/api/v1/documents/upload`,
+    `${config.apiBaseUrl}/documents/upload`,
     {
       method: "POST",
       body: form,
     },
-  )
-
-  await assertOk(response)
-
-  return response.json()
-}
-
-export async function listThreads():
-Promise<Thread[]> {
-  const response = await fetch(
-    `${config.apiUrl}/threads`,
   )
 
   await assertOk(response)

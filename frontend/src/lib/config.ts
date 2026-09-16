@@ -9,4 +9,5 @@ if (!apiUrl) {
 
 export const config = {
   apiUrl,
+  apiBaseUrl: `${apiUrl}/api/v1`,
 } as const
