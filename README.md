@@ -67,11 +67,6 @@ Atlas uses a manually verified retrieval benchmark rather than
 assuming additional RAG stages improve performance.
 
 | Pipeline | Recall@5 | MRR | nDCG@5 | Mean latency |
-|---|---:|---:|---:|---:|
-| Dense | REAL_VALUE | REAL_VALUE | REAL_VALUE | REAL_VALUE |
-| Sparse | REAL_VALUE | REAL_VALUE | REAL_VALUE | REAL_VALUE |
-| Hybrid | REAL_VALUE | REAL_VALUE | REAL_VALUE | REAL_VALUE |
-| Hybrid + reranker | REAL_VALUE | REAL_VALUE | REAL_VALUE | REAL_VALUE |
 
 Full methodology and results:
 
