@@ -19,7 +19,6 @@ from atlas.models.types import (
     ModelUsage,
 )
 
-
 OutputT = TypeVar(
     "OutputT",
     bound=BaseModel,
@@ -45,9 +44,7 @@ class OllamaModelClient:
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
-        self._timeout_seconds = (
-            timeout_seconds
-        )
+        self._timeout_seconds = timeout_seconds
 
     async def _generate(
         self,
@@ -84,21 +81,15 @@ class OllamaModelClient:
                 response.raise_for_status()
 
         except httpx.TimeoutException as exc:
-            raise ModelTimeoutError(
-                "Ollama request timed out."
-            ) from exc
+            raise ModelTimeoutError("Ollama request timed out.") from exc
 
         except httpx.HTTPStatusError as exc:
             raise ModelUnavailableError(
-                "Ollama returned an "
-                f"HTTP {exc.response.status_code} "
-                "response."
+                f"Ollama returned an HTTP {exc.response.status_code} response."
             ) from exc
 
         except httpx.RequestError as exc:
-            raise ModelUnavailableError(
-                "Could not connect to Ollama."
-            ) from exc
+            raise ModelUnavailableError("Could not connect to Ollama.") from exc
 
         return response.json()
 
@@ -114,63 +105,44 @@ class OllamaModelClient:
         response = await self._generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            format_schema=(
-                output_schema.model_json_schema()
-            ),
+            format_schema=(output_schema.model_json_schema()),
         )
 
-        message = response.get(
-            "message"
-        )
+        message = response.get("message")
 
         if not isinstance(
             message,
             dict,
         ):
             raise ModelInvalidOutputError(
-                "Ollama response did not "
-                "contain a message object."
+                "Ollama response did not contain a message object."
             )
 
-        content = message.get(
-            "content"
-        )
+        content = message.get("content")
 
         if not isinstance(
             content,
             str,
         ):
             raise ModelInvalidOutputError(
-                "Ollama response did not "
-                "contain textual content."
+                "Ollama response did not contain textual content."
             )
 
         try:
-            raw_output = json.loads(
-                content
-            )
+            raw_output = json.loads(content)
 
         except json.JSONDecodeError as exc:
-            raise ModelInvalidOutputError(
-                "Ollama returned invalid JSON."
-            ) from exc
+            raise ModelInvalidOutputError("Ollama returned invalid JSON.") from exc
 
         try:
-            output = (
-                output_schema.model_validate(
-                    raw_output
-                )
-            )
+            output = output_schema.model_validate(raw_output)
 
         except ValidationError as exc:
             raise ModelInvalidOutputError(
-                "Ollama output did not "
-                "match the requested schema."
+                "Ollama output did not match the requested schema."
             ) from exc
 
-        total_duration = (
-            monotonic() - started_at
-        )
+        total_duration = monotonic() - started_at
 
         prompt_tokens = response.get(
             "prompt_eval_count",
@@ -203,27 +175,11 @@ class OllamaModelClient:
 
         timings = ModelTimings(
             total_seconds=total_duration,
-            load_seconds=(
-                nanoseconds_to_seconds(
-                    response.get(
-                        "load_duration"
-                    )
-                )
-            ),
+            load_seconds=(nanoseconds_to_seconds(response.get("load_duration"))),
             prompt_eval_seconds=(
-                nanoseconds_to_seconds(
-                    response.get(
-                        "prompt_eval_duration"
-                    )
-                )
+                nanoseconds_to_seconds(response.get("prompt_eval_duration"))
             ),
-            generation_seconds=(
-                nanoseconds_to_seconds(
-                    response.get(
-                        "eval_duration"
-                    )
-                )
-            ),
+            generation_seconds=(nanoseconds_to_seconds(response.get("eval_duration"))),
         )
 
         metadata = ModelMetadata(
@@ -238,3 +194,18 @@ class OllamaModelClient:
             output=output,
             metadata=metadata,
         )
+
+    async def is_ready(self) -> bool:
+        try:
+            async with httpx.AsyncClient(
+                timeout=min(
+                    self._timeout_seconds,
+                    5.0,
+                )
+            ) as client:
+                response = await client.get(f"{self._base_url}/api/tags")
+
+            return response.status_code == 200
+
+        except httpx.HTTPError:
+            return False

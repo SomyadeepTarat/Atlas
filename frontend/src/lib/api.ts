@@ -49,6 +49,24 @@ export async function createThread(
   return response.json()
 }
 
+export async function listThreads(): Promise<
+  Thread[]
+> {
+  const response = await fetch(
+    `${config.apiBaseUrl}/threads`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  )
+
+  await assertOk(response)
+
+  return response.json()
+}
+
 export async function uploadDocument(
   file: File,
 ): Promise<DocumentUploadResponse> {

@@ -1,5 +1,4 @@
 from collections.abc import AsyncIterator
-import traceback
 from typing import Any
 
 from atlas.research.workflow.types import (
@@ -16,7 +15,6 @@ from atlas.schemas.streaming import (
 from atlas.telemetry.logging import (
     get_logger,
 )
-
 
 logger = get_logger(__name__)
 
@@ -54,6 +52,37 @@ _NODE_STATUS: dict[
         "Revising unsupported claims.",
     ),
 }
+
+
+def _extract_updates(
+    part: Any,
+) -> dict[str, Any] | None:
+    if not isinstance(
+        part,
+        dict,
+    ):
+        return None
+
+    # LangGraph v2 stream envelope:
+    #
+    # {
+    #     "type": "updates",
+    #     "data": {
+    #         "node_name": {...}
+    #     },
+    # }
+    if part.get("type") == "updates" and isinstance(
+        part.get("data"),
+        dict,
+    ):
+        return part["data"]
+
+    # Support the regular updates stream format too:
+    #
+    # {
+    #     "node_name": {...}
+    # }
+    return part
 
 
 class ResearchStreamAdapter:
@@ -104,15 +133,15 @@ class ResearchStreamAdapter:
         }
 
         try:
-            async for updates in self._graph.astream(
+            async for part in self._graph.astream(
                 initial_state,
                 config=config,
                 stream_mode="updates",
+                version="v2",
             ):
-                if not isinstance(
-                    updates,
-                    dict,
-                ):
+                updates = _extract_updates(part)
+
+                if updates is None:
                     continue
 
                 for (
@@ -125,9 +154,7 @@ class ResearchStreamAdapter:
                     ):
                         continue
 
-                    status = _NODE_STATUS.get(
-                        node_name
-                    )
+                    status = _NODE_STATUS.get(node_name)
 
                     if status is not None:
                         stage, message = status
@@ -137,37 +164,35 @@ class ResearchStreamAdapter:
                             Any,
                         ] = {}
 
-                        if (
-                            node_name
-                            == "retrieve"
-                        ):
+                        if node_name == "retrieve":
                             chunks = update.get(
                                 "retrieved_chunks",
                                 [],
                             )
 
-                            event_data[
-                                "chunk_count"
-                            ] = len(
-                                chunks
-                            )
+                            event_data["chunk_count"] = len(chunks)
 
                         if node_name == "plan":
-                            queries = update.get(
-                                "queries",
-                                [],
-                            )
+                            queries = update.get("queries")
 
-                            event_data[
-                                "query_count"
-                            ] = len(
-                                queries
-                            )
+                            if queries is None:
+                                queries = update.get(
+                                    "research_queries",
+                                    [],
+                                )
+
+                            if isinstance(
+                                queries,
+                                list,
+                            ):
+                                event_data["query_count"] = len(queries)
+                            else:
+                                event_data["query_count"] = 0
+
+                            event_data["query_count"] = len(queries)
 
                         yield ResearchStreamEvent(
-                            type=(
-                                ResearchEventType.STATUS
-                            ),
+                            type=(ResearchEventType.STATUS),
                             stage=stage,
                             message=message,
                             sequence=sequence,
@@ -176,91 +201,58 @@ class ResearchStreamAdapter:
 
                         sequence += 1
 
-                    iteration = update.get(
-                        "iteration"
-                    )
+                    iteration = update.get("iteration")
 
                     if isinstance(
                         iteration,
                         int,
                     ):
-                        latest_iteration = (
-                            iteration
-                        )
+                        latest_iteration = iteration
 
-                    answer = update.get(
-                        "answer"
-                    )
+                    answer = update.get("answer")
 
                     if isinstance(
                         answer,
                         GroundedAnswer,
                     ):
-                        latest_answer = (
-                            answer
-                        )
+                        latest_answer = answer
 
-                    verification = (
-                        update.get(
-                            "verification_passed"
-                        )
-                    )
+                    verification = update.get("verification_passed")
 
                     if isinstance(
                         verification,
                         bool,
                     ):
-                        verification_passed = (
-                            verification
-                        )
+                        verification_passed = verification
 
-                    reason = update.get(
-                        "verification_reason"
-                    )
+                    reason = update.get("verification_reason")
 
                     if isinstance(
                         reason,
                         str,
                     ):
-                        verification_reason = (
-                            reason
-                        )
+                        verification_reason = reason
 
         except Exception as exc:
-            traceback.print_exc()
-
             logger.exception(
                 "research.graph_stream.failed",
                 extra={
                     "thread_id": thread_id,
-                    "error_type": (
-                        type(exc).__name__
-                    ),
-                    "error_message": (
-                        str(exc)
-                    ),
+                    "error_type": (type(exc).__name__),
+                    "error_message": (str(exc)),
                 },
             )
 
             raise
 
         if latest_answer is None:
-            raise RuntimeError(
-                "Research workflow finished "
-                "without an answer."
-            )
+            raise RuntimeError("Research workflow finished without an answer.")
 
         result = ResearchWorkflowResult(
             answer=latest_answer,
-            iterations=(
-                latest_iteration + 1
-            ),
-            verification_passed=(
-                verification_passed
-            ),
-            verification_reason=(
-                verification_reason
-            ),
+            iterations=(latest_iteration + 1),
+            verification_passed=(verification_passed),
+            verification_reason=(verification_reason),
         )
 
         yield ResearchStreamEvent(
@@ -269,19 +261,9 @@ class ResearchStreamAdapter:
             message="Research complete.",
             sequence=sequence,
             data={
-                "answer": (
-                    result.answer.model_dump(
-                        mode="json"
-                    )
-                ),
-                "iterations": (
-                    result.iterations
-                ),
-                "verification_passed": (
-                    result.verification_passed
-                ),
-                "verification_reason": (
-                    result.verification_reason
-                ),
+                "answer": (result.answer.model_dump(mode="json")),
+                "iterations": (result.iterations),
+                "verification_passed": (result.verification_passed),
+                "verification_reason": (result.verification_reason),
             },
         )

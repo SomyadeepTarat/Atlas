@@ -1,0 +1,144 @@
+name: atlas
+
+services:
+  postgres:
+    image: postgres:17-alpine
+
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atlas}
+
+    volumes:
+      - atlas_postgres_data:/var/lib/postgresql/data
+      - atlas_hf_cache:/home/atlas/.cache/huggingface
+      - atlas_fastembed_cache:/home/atlas/.cache/fastembed
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U atlas -d atlas",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+    networks:
+      - atlas_internal
+
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+
+    volumes:
+      - atlas_qdrant_data:/qdrant/storage
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c '</dev/tcp/127.0.0.1/6333'",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+    networks:
+      - atlas_internal
+
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    env_file:
+      - .env.docker
+
+    environment:
+      DATABASE_URL: >-
+        postgresql+asyncpg://atlas:${POSTGRES_PASSWORD:-atlas}@postgres:5432/atlas
+
+      LANGGRAPH_DATABASE_URL: >-
+        postgresql://atlas:${POSTGRES_PASSWORD:-atlas}@postgres:5432/atlas
+
+      QDRANT_URL: http://qdrant:6333
+
+      OLLAMA_BASE_URL: >-
+        http://host.docker.internal:11434
+
+    ports:
+      - "8000:8000"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      qdrant:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "/app/docker/healthcheck.py",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+    restart: unless-stopped
+
+    networks:
+      - atlas_internal
+      - atlas_public
+
+
+  frontend:
+    build:
+      context: ./frontend
+
+      args:
+        NEXT_PUBLIC_ATLAS_API_URL: >-
+          http://localhost:8000/api/v1
+
+    environment:
+      NODE_ENV: production
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    networks:
+      - atlas_public
+
+
+volumes:
+  atlas_postgres_data:
+  atlas_qdrant_data:
+  atlas_hf_cache:
+  atlas_fastembed_cache:
+
+
+networks:
+  atlas_internal:
+    internal: true
+
+  atlas_public:

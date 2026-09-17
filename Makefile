@@ -54,15 +54,6 @@ run-trace-console:
 	TELEMETRY_CONSOLE_EXPORT=true \
 	uv run uvicorn atlas.main:app --app-dir src --reload
 
-infra-up:
-	docker compose up -d
-
-infra-down:
-	docker compose down
-
-infra-status:
-	docker compose ps
-
 db-migrate:
 	uv run alembic upgrade head
 
@@ -110,3 +101,60 @@ frontend-quality:
 quality-all:
 	$(MAKE) quality
 	$(MAKE) frontend-quality
+
+.PHONY: \
+	infra-up \
+	infra-dev-up \
+	infra-down \
+	infra-build \
+	infra-logs \
+	infra-status \
+	infra-reset \
+	docker-quality
+
+
+infra-build:
+	docker compose build
+
+
+infra-up:
+	docker compose up -d
+
+
+infra-dev-up:
+	docker compose \
+		-f compose.yaml \
+		-f compose.dev.yaml \
+		up -d
+
+
+infra-down:
+	docker compose down
+
+
+infra-logs:
+	docker compose logs -f
+
+
+infra-status:
+	docker compose ps
+
+
+infra-reset:
+	docker compose down -v
+
+docker-quality:
+	docker compose config
+	docker compose build
+
+docker-api:
+	docker compose build api
+
+docker-frontend:
+	docker compose build frontend
+
+docker-up-build:
+	docker compose up -d --build
+
+smoke:
+	uv run python scripts/smoke_test.py

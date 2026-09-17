@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import cast
 
 from atlas.core.config import get_settings
 from atlas.models.base import ModelClient
@@ -19,7 +20,7 @@ def get_model_client() -> ModelClient:
     )
 
     retrying_ollama = RetryModelClient(
-        ollama,
+        cast(ModelClient, ollama),
         max_attempts=settings.model_max_attempts,
         base_delay_seconds=(settings.model_retry_base_delay_seconds),
         max_delay_seconds=(settings.model_retry_max_delay_seconds),

@@ -16,7 +16,6 @@ from atlas.telemetry.logging import (
     reset_log_context,
 )
 
-
 logger = get_logger(__name__)
 
 
@@ -41,18 +40,11 @@ class RequestContextMiddleware:
             )
             return
 
-        headers = MutableHeaders(
-            scope=scope
-        )
+        headers = MutableHeaders(scope=scope)
 
-        request_id = (
-            headers.get("X-Request-ID")
-            or str(uuid4())
-        )
+        request_id = headers.get("X-Request-ID") or str(uuid4())
 
-        tokens = bind_log_context(
-            request_id=request_id
-        )
+        tokens = bind_log_context(request_id=request_id)
 
         started_at = monotonic()
 
@@ -63,23 +55,12 @@ class RequestContextMiddleware:
         ) -> None:
             nonlocal status_code
 
-            if (
-                message["type"]
-                == "http.response.start"
-            ):
-                status_code = message[
-                    "status"
-                ]
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
 
-                response_headers = (
-                    MutableHeaders(
-                        scope=message
-                    )
-                )
+                response_headers = MutableHeaders(scope=message)
 
-                response_headers[
-                    "X-Request-ID"
-                ] = request_id
+                response_headers["X-Request-ID"] = request_id
 
             await send(message)
 
@@ -93,19 +74,10 @@ class RequestContextMiddleware:
             logger.info(
                 "http.request.completed",
                 extra={
-                    "method": scope.get(
-                        "method"
-                    ),
-                    "path": scope.get(
-                        "path"
-                    ),
-                    "status_code": (
-                        status_code
-                    ),
-                    "duration_seconds": (
-                        monotonic()
-                        - started_at
-                    ),
+                    "method": scope.get("method"),
+                    "path": scope.get("path"),
+                    "status_code": (status_code),
+                    "duration_seconds": (monotonic() - started_at),
                 },
             )
 
@@ -113,22 +85,13 @@ class RequestContextMiddleware:
             logger.exception(
                 "http.request.failed",
                 extra={
-                    "method": scope.get(
-                        "method"
-                    ),
-                    "path": scope.get(
-                        "path"
-                    ),
-                    "duration_seconds": (
-                        monotonic()
-                        - started_at
-                    ),
+                    "method": scope.get("method"),
+                    "path": scope.get("path"),
+                    "duration_seconds": (monotonic() - started_at),
                 },
             )
 
             raise
 
         finally:
-            reset_log_context(
-                tokens
-            )
+            reset_log_context(tokens)
