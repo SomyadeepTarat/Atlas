@@ -30,12 +30,15 @@ services:
     networks:
       - atlas_internal
 
-
   qdrant:
     image: qdrant/qdrant:v1.15.4
 
+    ports:
+    - "127.0.0.1:6333:6333"
+    - "127.0.0.1:6334:6334"
+
     volumes:
-      - atlas_qdrant_data:/qdrant/storage
+    - atlas_qdrant_data:/qdrant/storage
 
     healthcheck:
       test:
@@ -52,7 +55,7 @@ services:
 
     networks:
       - atlas_internal
-
+      - atlas_public
 
   api:
     build:
@@ -105,14 +108,12 @@ services:
       - atlas_internal
       - atlas_public
 
-
   frontend:
     build:
       context: ./frontend
-
       args:
         NEXT_PUBLIC_ATLAS_API_URL: >-
-          http://localhost:8000/api/v1
+          http://localhost:8000
 
     environment:
       NODE_ENV: production

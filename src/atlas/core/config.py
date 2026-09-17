@@ -95,6 +95,8 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://localhost:3000"
 
+    app_version: str = "1.0.0"
+
 
 @lru_cache
 def get_settings() -> Settings:

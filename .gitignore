@@ -10,7 +10,8 @@ env/
 
 # Environment variables / secrets
 .env
-.env.*
+.env.docker
+.env.local
 !.env.example
 
 # uv / Python tooling
@@ -53,3 +54,5 @@ data/qdrant/
 node_modules/
 
 .next
+
+alembic.ini

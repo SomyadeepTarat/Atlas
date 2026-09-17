@@ -6,8 +6,14 @@ from atlas.evals.dataset import (
 from atlas.evals.experiments import (
     EXPERIMENTS,
 )
+from atlas.evals.reports import (
+    write_retrieval_csv,
+)
 from atlas.evals.runner import (
     RetrievalEvaluationRunner,
+)
+from atlas.evals.types import (
+    RetrievalExperimentResult,
 )
 from atlas.retrieval.dependencies import (
     get_retrieval_service,
@@ -15,17 +21,30 @@ from atlas.retrieval.dependencies import (
 
 
 def main() -> None:
-    dataset = load_dataset(Path("evals/datasets/retrieval_v1.json"))
+    dataset_path = Path("evals/datasets/retrieval_v1.json")
+
+    output_dir = Path("benchmarks/atlas-v1")
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    dataset = load_dataset(dataset_path)
 
     retrieval = get_retrieval_service()
 
     runner = RetrievalEvaluationRunner(retrieval)
+
+    results: list[RetrievalExperimentResult] = []
 
     for experiment in EXPERIMENTS:
         result = runner.run(
             experiment=experiment,
             cases=dataset,
         )
+
+        results.append(result)
 
         print()
         print(f"=== {result.experiment_name} ===")
@@ -70,6 +89,17 @@ def main() -> None:
             ),
             "s",
         )
+
+    write_retrieval_csv(
+        results,
+        output_dir / "retrieval-results.csv",
+    )
+
+    print()
+    print(
+        "Results written to:",
+        output_dir / "retrieval-results.csv",
+    )
 
 
 if __name__ == "__main__":

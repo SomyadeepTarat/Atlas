@@ -158,3 +158,6 @@ docker-up-build:
 
 smoke:
 	uv run python scripts/smoke_test.py
+
+benchmark-final:
+	uv run python scripts/run_retrieval_evals.py

@@ -1,14 +1,13 @@
-import type {
-  Metadata,
-} from "next"
+import type { Metadata } from "next"
 
 import "./globals.css"
 
 
 export const metadata: Metadata = {
-  title: "Atlas",
+  title: "Atlas — Evidence-Driven Research Agent",
+
   description:
-    "Evidence-driven AI research agent",
+    "A locally deployable, evaluation-driven AI research agent with hybrid retrieval, citations, controlled tools, persistent memory, observability, and adversarial testing.",
 }
 
 
@@ -19,9 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

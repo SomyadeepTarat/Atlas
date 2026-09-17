@@ -1,0 +1,6 @@
+experiment,mean_recall,mean_precision,mean_mrr,mean_ndcg,mean_latency_seconds
+dense,0.0,0.0,0.0,0.0,0.022076619643485174
+sparse,0.0,0.0,0.0,0.0,0.0022883074125275016
+hybrid,0.0,0.0,0.0,0.0,0.01580152614042163
+hybrid-rerank,0.0,0.0,0.0,0.0,0.018285572907188907
+hybrid-rerank-dedupe,0.0,0.0,0.0,0.0,0.015182838484179229
